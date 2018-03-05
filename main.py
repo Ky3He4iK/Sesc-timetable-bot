@@ -3,14 +3,15 @@ import datetime
 import threading
 from time import sleep
 import logging
-import telebot
+# import telebot
 
 from body import Context
 import update_timetable
 import common
-import config
+# import config
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
+
 
 def check_update_system():
     import Timetable
@@ -47,9 +48,6 @@ def thread_start():
 def send_to_father(text):
     return context.send_to_father(text)
 
-def gen_keyboard():
-    inline_keyboard
-
 
 if __name__ == '__main__':
     common.DEBUG = len(sys.argv) != 1
@@ -57,7 +55,7 @@ if __name__ == '__main__':
     bot_main = threading.Thread(target=thread_start)
     bot_main.daemon = True
     bot_main.start()
-    context.send_message(config.father_chat, "test", gen_keyboard())
+    # context.send_message(config.father_chat, "test", gen_keyboard())
     while True:
         try:
             if len(common.pool_to_send) != 0:
