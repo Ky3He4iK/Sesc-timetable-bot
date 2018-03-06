@@ -112,7 +112,14 @@ class Timetable:
         return self.r_i[room_ind]
 
     def get_timetable_les(self, tt_type, day_ind, lesson, ind):
-        def replace(arr, type_a):
+        """
+        :param tt_type:
+        :param day_ind:
+        :param lesson:
+        :param ind:
+        :return:
+        """
+        '''def replace(arr, type_a):
             if type_a == Type.CLASS:
                 return [self.c_n[i] for i in arr]
             if type_a == Type.TEACHER:
@@ -121,10 +128,18 @@ class Timetable:
                 return [self.r_n[i] for i in arr]
 
         def replace_scp(arr):
-            return ['█' * len(a) for a in arr]
+            return ['█' * len(a) for a in arr]'''
+        def group_to_str(tt_cell):
+            if tt_cell.room_ind != self.trap:
+                return (self.c_n[tt_cell.class_ind] + ' ' if tt_type != Type.CLASS else "") + \
+                       ('(' + str(tt_cell.group_ind) + ') ' if tt_cell.group_ind != 0 else "") + tt_cell.subject + \
+                       (' - ' + str(self.t_n[tt_cell.teacher_ind]) if tt_type != Type.TEACHER else "") + \
+                       (' в ' + self.get_room(tt_cell.room_ind) if tt_type != Type.ROOM else "")
+            else:
+                return 'ACCESS DENIED'
 
         answer = str(lesson + 1) + ': '
-        lessons = []
+        lessons = [TClasses.TTDay.TTLesson.TTLClass.TTCell() for _ in range(0)]
         if tt_type == Type.CLASS:
             lessons = self.all[day_ind].day[lesson].lesson[ind].group
         else:
@@ -137,7 +152,8 @@ class Timetable:
             answer += '\0--------------------\n'
         else:
             lessons.sort()
-            if tt_type != Type.CLASS:
+            answer += '\n'.join(group_to_str(les) for les in lessons)
+            '''if tt_type != Type.CLASS:
                 cl, g_i, s_i, t_i, r_i = [], [], [], [], []
                 for group in lessons:
                     if group.class_ind not in cl:
@@ -163,6 +179,7 @@ class Timetable:
                                    ('(' + str(g_i[i]) + ')' if g_i[i] != 0 else '') for i in
                                    range(len(cl))) + ' - ' + '|'.join(s for s in s_i)
                 # Какая-то чёрная магия генераторов. НЕ ТРОГАТЬ! (я сам не знаю как это работает)
+                # (так то знаю, но это не точно)
                 if tt_type != Type.TEACHER:
                     answer += ' - ' + '|'.join(self.t_n[i] for i in t_i)
                 if tt_type != Type.ROOM:
@@ -177,7 +194,7 @@ class Timetable:
                     if group.room_ind != self.trap:
                         answer += self.get_room(group.room_ind) + '\n'
                     else:
-                        answer += '███' + '\n'
+                        answer += '███' + '\n'''
         return answer
 
     def get_timetable(self, ind, tt_type, day=7):
@@ -187,7 +204,10 @@ class Timetable:
             if tt_type == Type.CLASS:
                 ans += self.c_n[ind]
             elif tt_type == Type.ROOM:
-                ans += self.get_room_long(ind)
+                if ind == self.trap:
+                    ans += '███'
+                else:
+                    ans += self.get_room_long(ind)
             elif tt_type == Type.TEACHER:
                 ans += self.t_n[ind]
             else:
@@ -201,18 +221,14 @@ class Timetable:
 
         def get_timetable_main(day_ind):
             if day_ind == 7:
-                ans = ''
-                for d in range(6):
-                    ans += get_timetable_main(d)
-                return ans
+                return '\n'.join(get_timetable_main(d) for d in range(6))
             ans = self.d_n[day_ind]
             h_l = False
             tt_a = []
             last_les = -1
             for les in range(7):
                 tt_s = self.get_timetable_les(tt_type, day_ind, les, ind)
-                b = '\0' in tt_s
-                if not b:
+                if '\0' not in tt_s:
                     h_l = True
                     last_les = les
                 tt_a.append(tt_s)
@@ -222,12 +238,6 @@ class Timetable:
 
         if ind == -1:
             return "Что-то пошло не так\n"
-        if tt_type == Type.ROOM and self.r_i[ind] == 'Hz':
-            if day == 7:
-                day = "███ ██████"
-            else:
-                day = '█' * len(self.d_n[day])
-            return "Расписание для ███ на " + day + "\n████ ██████████[ACCESS DENIED]"
         title = get_timetable_title()
         tt = get_timetable_main(day)
         if tt == '':

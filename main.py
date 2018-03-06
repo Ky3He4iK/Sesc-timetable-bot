@@ -2,15 +2,13 @@ import sys
 import datetime
 import threading
 from time import sleep
-import logging
 # import telebot
 
 from body import Context
 import update_timetable
 import common
+import requests
 # import config
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
 
 
 def check_update_system():
@@ -40,6 +38,8 @@ def thread_start():
     while True:
         try:
             context.bot.polling(none_stop=False)
+        except KeyboardInterrupt:
+            exit(0)
         except BaseException as e:
             context.write_error(e)
             sleep(3)
@@ -51,6 +51,8 @@ def send_to_father(text):
 
 if __name__ == '__main__':
     common.DEBUG = len(sys.argv) != 1
+    if common.DEBUG:
+        requests.get("https://telegram.org")
     context = Context()
     bot_main = threading.Thread(target=thread_start)
     bot_main.daemon = True
@@ -59,11 +61,18 @@ if __name__ == '__main__':
     while True:
         try:
             if len(common.pool_to_send) != 0:
-                context.send_message(common.pool_to_send[0].to_user_id, common.pool_to_send[0].text)
+                context.qsend_message(common.pool_to_send[0].to_user_id, common.pool_to_send[0].text,
+                                      silent=common.pool_to_send[0].silent,
+                                      inline_keyboard=common.pool_to_send[0].inline_keyboard)
                 common.pool_to_send = common.pool_to_send[1:]
                 sleep(0.01)
+            if len(common.pool_to_edit) != 0:
+                context.edit_message(common.pool_to_edit[0].chat_id, common.pool_to_edit[0].text,
+                                     common.pool_to_edit[0].message_id, common.pool_to_edit[0].inline_keyboard)
+        except KeyboardInterrupt:
+            exit(0)
         except BaseException as err:
-            logging.error(err, exc_info=True)
+            common.logger.error(err, exc_info=True)
             print(str(err), err.args, err.__traceback__)
             print(err.with_traceback(err.__traceback__))
             f = open("Error-bot-" + datetime.datetime.today().strftime("%y%m%d-%Hh") + '.log', 'a')

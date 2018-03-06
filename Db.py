@@ -6,7 +6,7 @@ from Type import Type
 
 class User:
     def __init__(self, internal_id=-1, username=None, user_id=None, type_name=Type.CLASS, type_id=10,
-                 notifications=True, first_name=None, last_access=0):
+                 notifications=True, first_name=None, last_access=0, current_state=0):
         self.internal_id = internal_id
         self.username = username
         self.user_id = user_id
@@ -15,15 +15,23 @@ class User:
         self.notifications = notifications
         self.first_name = first_name
         self.last_access = last_access
+        self.current_state = current_state
 
     def restore(self, original):
         self.internal_id = original['internal_id']
-        self.last_access = original['last_access']
         self.username = original['username']
         self.user_id = original['user_id']
         self.type_name = original['type_name']
         self.type_id = original['type_id']
         self.notifications = original['notifications']
+        if 'last_access' in original:
+            self.last_access = original['last_access']
+        else:
+            self.last_access = 0
+        if 'current_state' in original:
+            self.current_state = original['current_state']
+        else:
+            self.current_state = 0
         return self
 
     def re_set(self, type_name, type_id):
@@ -39,7 +47,8 @@ class User:
             'type_id': self.type_id,
             'notifications': self.notifications,
             'first_name ': self.first_name,
-            'last_access': self.last_access
+            'last_access': self.last_access,
+            'current_state': self.current_state
         }
 
 
@@ -77,6 +86,7 @@ class Db:
     def __init__(self):
         try:
             self.read_all()
+            print("Read!")
         except FileNotFoundError:
             print("Updating...")
             self.users = [User() for _ in range(0)]

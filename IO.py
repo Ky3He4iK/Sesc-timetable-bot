@@ -41,10 +41,10 @@ class FileIO:
 
 class InternetIO:
     @staticmethod
-    def get(url):
+    def get(url, fast=False):
         try:
             # sleep(0.01)
-            if common.DEBUG:
+            if common.DEBUG or fast:
                 sleep(0.01)
             else:
                 sleep(1)

@@ -3,11 +3,14 @@ import datetime
 import logging
 from threading import Thread
 from time import sleep
+from telebot import types
 
 from Db import Db
 import common
 import config
 from Type import Type
+import Callback_query_handler
+import update_timetable
 # from old import legacy_hub
 
 
@@ -30,11 +33,19 @@ class Context:
 
         @self.bot.message_handler(commands=['ping'])
         def _reply_ping(message):
+            common.logger.info(message)
             self.bot.send_message(message.chat.id, "Pong!")
             self.on_user_message(self.db.find_user(message.from_user.id))
 
-        @self.bot.message_handler(content_types=['text'])
+        @self.bot.message_handler(content_types=['text'], func=lambda message: message.text[0] == '/')
         def _reply(message):
+            keyboard = types.InlineKeyboardMarkup()
+            callback_button = types.InlineKeyboardButton(text="Нажми меня", callback_data="test")
+            keyboard.add(callback_button)
+            self.bot.send_message(message.chat.id, "text", reply_markup=keyboard)
+            common.logger.info(message)
+            if common.DEBUG:
+                return
             try:
                 self.mes_proc(message)
             except BaseException as e:
@@ -44,14 +55,14 @@ class Context:
                 self.send_to_father("An GREAT ERROR occupied")
                 self.write_error(e, message)
 
-        @self.bot.message_handler()
+        @self.bot.message_handler(func=lambda message: True)
         def _reply_default(message):
-            self.mes_proc_extended(message)
-            self.on_user_message(self.db.find_user(message.chat.id))
+            self.on_user_message(self.db.find_user(message.from_user.id))
 
-        @self.bot.callback_query_handler()
-        def _callback():
-            pass
+        @self.bot.callback_query_handler(func=lambda call: True)
+        def test_callback(call):
+            common.logger.info(call)
+            Callback_query_handler.main(call, self.db)
 
     def on_user_message(self, user_id):
         if user_id != -1:
@@ -70,7 +81,7 @@ class Context:
         f.write(datetime.datetime.today().strftime("%M:%S-%f") + str(err) + ' ' + str(err.args) + '\n' + text + '\n\n')
         f.close()
 
-    def send_message(self, chat_id, text, inline_keyboard=None, silent=False):
+    def qsend_message(self, chat_id, text, inline_keyboard=None, silent=False):
         try:
             text = str(text)
             if len(text) == 0:
@@ -83,7 +94,7 @@ class Context:
                     end_p = text[:4094].rfind(' ')
                     if end_p < 3600:
                         end_p = 4094
-                self.bot.send_message(chat_id, text[:end_p], reply_markup=inline_keyboard, disable_notification=silent)
+                self.bot.send_message(chat_id, text[:end_p], disable_notification=silent)
                 text = text[end_p:]
                 sleep(0.01)
             if len(text) != 0:
@@ -94,8 +105,22 @@ class Context:
             self.write_error(e)
             return False
 
-    def send_to_father(self, text):
-        self.send_message(config.father_chat, text)
+    def edit_message(self, chat_id, text, message_id, inline_keyboard=None):
+        try:
+            text = str(text)
+            if len(text) != 0:
+                if inline_keyboard is None:
+                    inline_keyboard = config.default_keyboard
+                self.bot.edit_message_text(text[:4096], chat_id, message_id, reply_markup=inline_keyboard)
+                sleep(0.01)
+                return True
+        except BaseException as e:
+            self.write_error(e)
+        return False
+
+    @staticmethod
+    def send_to_father(text):
+        common.pool_to_send = [common.Message(text=text)] + common.pool_to_send
 
     def mes_proc(self, message):
         try:
@@ -117,23 +142,20 @@ class Context:
                     text = config.help_mes
                 else:
                     text = "Старые команды не работают"
-                self.send_message(message.chat.id, text)
+                common.pool_to_send.append(common.Message(text=text, to_user_id=message.from_user.id,
+                                                          inline_keyboard=None))
                 # TODO: do
             else:
-                self.send_message(message.chat.id, "...")
+                common.pool_to_send.append(common.Message(text="...", to_user_id=message.from_user.id,
+                                                          inline_keyboard=None))
             self.on_user_message(self.db.find_user(message.from_user.id))
         except Exception as e:
-            self.send_message(message.chat.id, "так_блэт.пнг\nКостыли не выдержали и бот упал\n"
-                                               "Я бы добавил ещё парочку, но ̶м̶н̶е̶ ̶л̶е̶н̶ь̶ у меня лапки :3")
+            common.pool_to_send.append(common.Message(text="так_блэт.пнг\nКостыли не выдержали и бот упал\nЯ бы "
+                                                           "добавил ещё парочку, но ̶м̶н̶е̶ ̶л̶е̶н̶ь̶ у меня лапки :3",
+                                                      to_user_id=message.from_user.id, inline_keyboard=None))
             self.write_error(e, message)
             return None
-
-    def mes_proc_extended(self, message):
-        if message.text is None or message.text == '':
-            self.send_message(message.chat.id, "Моя твоя не понимать")
-        else:
-            self.mes_proc(message)
-    # todo: add sudoadd for users
+        # todo: add sudoadd for users
 
     def thread_time(self):
         while True:
@@ -156,8 +178,8 @@ class Context:
                 c_minute = today.minute
                 self.current_lesson = set_l(c_hour, c_minute)
                 print(self.db.timetable.d_n[self.current_day % 6], c_hour, c_minute)
-                config.c_day = self.current_day
-                config.c_les = self.current_lesson
+                common.c_day = self.current_day
+                common.c_les = self.current_lesson
                 for _ in range(60):
                     c_minute += 2
                     c_hour += c_minute // 60
@@ -193,20 +215,19 @@ class Context:
                         user.notifications:
                     if user.type_name == Type.CLASS:
                         text = gen_changes(user.type_id)
-                        is_ok = is_ok and text is not False
-                        if text is not False:
-                            self.send_message(user.user_id, text, silent=True)
+                        is_ok = is_ok and (text is not False)
                     else:
                         text = gen_all_changes()
-                        is_ok = is_ok and text is not False
-                        if text is not False:
-                            self.send_message(user.user_id, text, silent=True)
+                        is_ok = is_ok and (text is not False)
+                    if text is not False:
+                        common.pool_to_send.append(common.Message(text=text, to_user_id=user.user_id,
+                                                                  inline_keyboard=None, silent=True))
             return is_ok
 
         while True:
             try:
                 c_o = self.db.timetable.changes
-                b = self.db.timetable.update()
+                b = update_timetable.t_update(self.db.timetable)
                 if self.db.timetable.changes != c_o and b:
                     b = b or changes_notify()
                 if not b:
