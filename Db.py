@@ -5,50 +5,77 @@ from Type import Type
 
 
 class User:
+    class Settings:
+        def __init__(self, type_name=Type.CLASS, type_id=10, notifications=True, current_state=0,
+                     default_presentation=0, default_presentation_changes=1, default_presentation_rooms=0):
+            self.type_name = type_name
+            self.type_id = type_id
+            self.notifications = notifications
+            self.current_state = current_state
+            self.default_presentation = default_presentation  # 0 - all week; 1 - current day; 2 - near lesson
+            self.default_presentation_changes = default_presentation_changes  # 0 - all changes; 1 - for one class
+            # (only if type is class)
+            self.default_presentation_rooms = default_presentation_rooms  # 0 - all days; 1 - current day; 2 - next day;
+            # 3 - near lesson
+
+        def __dict__(self):
+            return {
+                'type_name': self.type_name,
+                'type_id': self.type_id,
+                'notifications': self.notifications,
+                'current_state': self.current_state,
+                'default_presentation': self.default_presentation,
+                'default_presentation_changes': self.default_presentation_changes,
+                'default_presentation_rooms': self.default_presentation_rooms
+            }
+
+        def restore(self, original):
+            self.type_name = original['type_name']
+            self.type_id = original['type_id']
+            self.notifications = original['notifications']
+            self.current_state = original['current_state']
+            self.default_presentation = original['default_presentation']
+            self.default_presentation_changes = original['default_presentation_changes']
+            self.default_presentation_rooms = original['default_presentation_rooms']
+            return self
+
     def __init__(self, internal_id=-1, username=None, user_id=None, type_name=Type.CLASS, type_id=10,
-                 notifications=True, first_name=None, last_access=0, current_state=0):
+                 notifications=True, first_name=None, last_access=0):
         self.internal_id = internal_id
         self.username = username
         self.user_id = user_id
-        self.type_name = type_name
-        self.type_id = type_id
         self.notifications = notifications
         self.first_name = first_name
         self.last_access = last_access
-        self.current_state = current_state
+        self.settings = self.Settings(type_name, type_id)
 
     def restore(self, original):
         self.internal_id = original['internal_id']
         self.username = original['username']
         self.user_id = original['user_id']
-        self.type_name = original['type_name']
-        self.type_id = original['type_id']
         self.notifications = original['notifications']
         if 'last_access' in original:
             self.last_access = original['last_access']
         else:
             self.last_access = 0
-        if 'current_state' in original:
-            self.current_state = original['current_state']
-        else:
-            self.current_state = 0
+        self.settings = self.Settings()
+        if 'settings' in original:
+            self.settings.restore(original['settings'])
         return self
 
     def re_set(self, type_name, type_id):
-        self.type_id = type_id
-        self.type_name = type_name
+        self.settings.type_id = type_id
+        self.settings.type_name = type_name
 
     def __dict__(self):
         return {
             'internal_id': self.internal_id,
             'username': self.username,
             'user_id': self.user_id,
-            'type_name': self.type_name,
-            'type_id': self.type_id,
             'notifications': self.notifications,
             'first_name ': self.first_name,
             'last_access': self.last_access,
-            'current_state': self.current_state
+            'settings': self.settings.__dict__()
         }
 
 

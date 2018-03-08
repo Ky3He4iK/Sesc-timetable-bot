@@ -69,6 +69,8 @@ if __name__ == '__main__':
             if len(common.pool_to_edit) != 0:
                 context.edit_message(common.pool_to_edit[0].chat_id, common.pool_to_edit[0].text,
                                      common.pool_to_edit[0].message_id, common.pool_to_edit[0].inline_keyboard)
+                common.pool_to_edit = common.pool_to_edit[1:]
+            sleep(0.3)
         except KeyboardInterrupt:
             exit(0)
         except BaseException as err:

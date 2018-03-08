@@ -38,7 +38,7 @@ class Timetable:
                 }
 
     @staticmethod
-    def bin_search_crutch(arr, dest, is_name=True, start=0, end=-1):  # Знаю, костыль, но всё же
+    def bin_search_crutch(arr, destination, is_name=True, start=0, end=-1):  # Знаю, костыль, но всё же
         if end == -1:
             end = len(arr)
         while end - start > 0:
@@ -48,35 +48,35 @@ class Timetable:
                 t_e = t_e.name
             else:
                 t_e = t_e.ind
-            if t_e < dest:
+            if t_e < destination:
                 start = center + 1
-            elif t_e > dest:
+            elif t_e > destination:
                 end = center
             else:
                 return center
         for i in range(len(arr)):
             if is_name:
-                if arr[i].name == dest:
+                if arr[i].name == destination:
                     return i
-            elif arr[i].ind == dest:
+            elif arr[i].ind == destination:
                     return i
         return -1
 
     @staticmethod
-    def bin_search_crutch_second(arr, dest, start=0, end=-1):  # Знаю, костыль, но всё же
+    def bin_search_crutch_second(arr, destination, start=0, end=-1):  # Знаю, костыль, но всё же
         if end == -1:
             end = len(arr)
         while end - start > 0:
             center = (end + start) // 2
             t_e = arr[center]
-            if t_e < dest:
+            if t_e < destination:
                 start = center + 1
-            elif t_e > dest:
+            elif t_e > destination:
                 end = center
             else:
                 return center
         for i in range(len(arr)):
-            if arr[i] == dest:
+            if arr[i] == destination:
                 return i
         return -1
 

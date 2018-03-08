@@ -5,7 +5,7 @@ import config
 import logging
 
 
-def t_update(timetable):
+def t_update(timetable, full=True):
     try:
         tt_t = Timetable(True)
 
@@ -148,13 +148,20 @@ def t_update(timetable):
                 raise Exception("No internet connection")
             if ans == "Err\n":
                 raise Exception("Fail while updating teachers\n", teacher_ind, ans)
-            if tt_t.changes_raw is None:
-                tt_t.changes_raw = ans[ans.find("</summary>") + len("</summary>"):]
             if "Уроков не найдено" in ans:
                 return
             ans = ans[ans.index("<h3>") + len("<h3>"): ans.index("<details><summary>")]
             for sub_s in ans.split("<h3>"):
                 set_teacher_day(sub_s, teacher_ind)
+
+        def get_changes_raw():
+            url = config.base_url + token + "&tmrType=1&tmrClass=&tmrTeach=" + tt_t.teachers[0].ind
+            ans = IO.InternetIO.get(url + "&tmrRoom=0&tmrDay=0")
+            if ans is None:
+                raise Exception("No internet connection")
+            if ans == "Err\n":
+                raise Exception("Fail while updating teachers\n", 0, ans)
+            return ans[ans.find("</summary>") + len("</summary>"):]
 
         def set_changes():
             def get_day_specialized(day):
@@ -177,11 +184,12 @@ def t_update(timetable):
                     tmp.append(sub_ch[:sub_ch.find("</p>")])
                 tt_t.changes.changes.append(TClasses.Changes.ChangesCell(cl_ind, tmp))
 
+            changes_raw = get_changes_raw()
             tt_t.changes = TClasses.Changes(len(tt_t.classes))
-            temp = tt_t.changes_raw[tt_t.changes_raw.find("НА ") + len("НА "):]
+            temp = changes_raw[changes_raw.find("НА ") + len("НА "):]
             tt_t.changes.change_day = get_day_specialized(temp[:temp.find(' ') - 1])
-            ind = tt_t.changes_raw.find("</h3>") + len("</h3>")
-            changes_raw = tt_t.changes_raw[ind:].replace("&nbsp;&mdash;", "-")
+            ind = changes_raw.find("</h3>") + len("</h3>")
+            changes_raw = changes_raw[ind:].replace("&nbsp;&mdash;", "-")
             arr = changes_raw.split("<h6>")
             for les_ch in arr:
                 if len(les_ch) != 0:
@@ -195,27 +203,25 @@ def t_update(timetable):
             for class_ch_ind in range(len(tt_t.changes.changes)):
                 tt_t.changes.ch_ind[tt_t.changes.changes[class_ch_ind].class_ind] = class_ch_ind
 
-        for cl in range(len(tt_t.classes)):
-            for d in range(len(tt_t.days)):
-                set_class(cl, d)
-        for t in range(len(tt_t.teachers)):
-            set_teacher(t)
+        if full:
+            for cl in range(len(tt_t.classes)):
+                for d in range(len(tt_t.days)):
+                    set_class(cl, d)
+            for t in range(len(tt_t.teachers)):
+                set_teacher(t)
+            tt_t.free_rooms.set(tt_t)
         set_changes()
         gen_ch_ind()
-        tt_t.free_rooms.set(tt_t)
-        timetable.free_rooms = tt_t.free_rooms
-        # self.classes = tt_t.classes
         timetable.changes = tt_t.changes
-        timetable.all = tt_t.all
-        # self.rooms = tt_t.rooms
-        # self.days = tt_t.days
-        # self.teachers = tt_t.teachers
-        timetable.t_n = [t.name for t in tt_t.teachers]
-        timetable.c_n = [c.name for c in tt_t.classes]
-        timetable.d_n = [d.name for d in tt_t.days]
-        timetable.r_n = [r.name for r in tt_t.rooms]
-        timetable.r_i = [r.ind for r in tt_t.rooms]
-        timetable.trap = timetable.r_i.index('Hz')
+        if full:
+            timetable.free_rooms = tt_t.free_rooms
+            timetable.all = tt_t.all
+            timetable.t_n = [t.name for t in tt_t.teachers]
+            timetable.c_n = [c.name for c in tt_t.classes]
+            timetable.d_n = [d.name for d in tt_t.days]
+            timetable.r_n = [r.name for r in tt_t.rooms]
+            timetable.r_i = [r.ind for r in tt_t.rooms]
+            timetable.trap = timetable.r_i.index('Hz')
         return True
     except BaseException as e:
         print(str(e), e.args, e.__traceback__)

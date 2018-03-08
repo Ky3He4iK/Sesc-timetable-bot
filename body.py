@@ -16,6 +16,18 @@ import update_timetable
 
 class Context:
     def __init__(self):
+        def set_default_keyboard():
+            keyboard = types.InlineKeyboardMarkup(row_width=3)
+            callback_buttons = [types.InlineKeyboardButton(text="Timetable", callback_data="4.0 tt"),
+                                types.InlineKeyboardButton(text="Changes", callback_data="5.0 changes"),
+                                types.InlineKeyboardButton(text="Free rooms", callback_data="6.0 free"),
+                                types.InlineKeyboardButton(text="Bells", callback_data="3.1 bells"),
+                                types.InlineKeyboardButton(text="Settings", callback_data="7.0 settings"),
+                                types.InlineKeyboardButton(text="Another", callback_data="8.0 another")]
+            keyboard.add(callback_buttons[0], callback_buttons[1], callback_buttons[2], callback_buttons[3],
+                         callback_buttons[4], callback_buttons[5])
+            return keyboard
+
         self.DEBUG = common.DEBUG
         self.db = Db()
         self.current_day = 0
@@ -30,6 +42,7 @@ class Context:
         self.timing = Thread(target=self.thread_time)
         self.timing.daemon = True
         self.timing.start()
+        config.default_keyboard = set_default_keyboard()
 
         @self.bot.message_handler(commands=['ping'])
         def _reply_ping(message):
@@ -39,10 +52,7 @@ class Context:
 
         @self.bot.message_handler(content_types=['text'], func=lambda message: message.text[0] == '/')
         def _reply(message):
-            keyboard = types.InlineKeyboardMarkup()
-            callback_button = types.InlineKeyboardButton(text="Нажми меня", callback_data="test")
-            keyboard.add(callback_button)
-            self.bot.send_message(message.chat.id, "text", reply_markup=keyboard)
+            common.pool_to_send.append(common.Message("text", message.from_user.id))
             common.logger.info(message)
             if common.DEBUG:
                 return
@@ -111,7 +121,11 @@ class Context:
             if len(text) != 0:
                 if inline_keyboard is None:
                     inline_keyboard = config.default_keyboard
-                self.bot.edit_message_text(text[:4096], chat_id, message_id, reply_markup=inline_keyboard)
+                try:
+                    self.bot.edit_message_text(text[:4096], chat_id, message_id, reply_markup=inline_keyboard)
+                except telebot.apihelper.ApiException as e:
+                    print(e.function_name, e.result, e.args)
+                    return False
                 sleep(0.01)
                 return True
         except BaseException as e:
@@ -190,7 +204,7 @@ class Context:
                 self.write_error(e)
                 print("Time thread: error")
 
-    def thread_update(self):
+    def thread_update(self):  # syns changes every 30 min, timetable - every 4 hours
         def changes_notify():
             def gen_changes(class_id):
                 try:
@@ -203,12 +217,11 @@ class Context:
                        "\nВсегда можно отказаться от этих уведомлений в настройках (если я их сделал)"
 
             def gen_all_changes():
-                return "Сведие изменения на" + self.db.timetable.d_n[self.db.timetable.changes.change_day] + \
-                       "для всех" + '\n\n'.join(
+                return "Свежие изменения на " + self.db.timetable.d_n[self.db.timetable.changes.change_day] + \
+                       " для всех" + '\n\n'.join(
                     self.db.timetable.c_n[changesCell.class_ind] + '\n'.join(c_d for c_d in changesCell.change_data)
                     for changesCell in self.db.timetable.changes.changes) + \
                        "\nВсегда можно отказаться от этих уведомлений в настройках (если я их сделал)"
-
             is_ok = True
             for user in self.db.timetable.users:
                 if (user.type_name != Type.CLASS or self.db.timetable.changes.has_changes[user.type_id]) and \
@@ -224,14 +237,19 @@ class Context:
                                                                   inline_keyboard=None, silent=True))
             return is_ok
 
+        counter = 0
         while True:
             try:
                 c_o = self.db.timetable.changes
-                b = update_timetable.t_update(self.db.timetable)
+                b = update_timetable.t_update(self.db.timetable, counter == 0)
+                counter += 1
+                if counter >= 8:
+                    counter = 0
                 if self.db.timetable.changes != c_o and b:
                     b = b or changes_notify()
                 if not b:
                     print("update failed")
-                sleep(60 * 60)
+                sleep(60 * 30)
             except BaseException as e:
                 self.write_error(e)
+        # Todo: add backups
