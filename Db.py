@@ -7,13 +7,13 @@ from Type import Type
 class User:
     class Settings:
         def __init__(self, type_name=Type.CLASS, type_id=10, notifications=True, current_state=0,
-                     default_presentation=0, default_presentation_changes=1, default_presentation_rooms=0):
+                     default_presentation=0, default_presentation_changes=4, default_presentation_rooms=0):
             self.type_name = type_name
             self.type_id = type_id
             self.notifications = notifications
             self.current_state = current_state
             self.default_presentation = default_presentation  # 0 - all week; 1 - current day; 2 - near lesson
-            self.default_presentation_changes = default_presentation_changes  # 0 - all changes; 1 - for one class
+            self.default_presentation_changes = default_presentation_changes  # 4 - all changes; 5 - for one class
             # (only if type is class)
             self.default_presentation_rooms = default_presentation_rooms  # 0 - all days; 1 - current day; 2 - next day;
             # 3 - near lesson
@@ -87,14 +87,14 @@ class Feedback:
         SOLVING = 2
         SOLVED = 3
 
-    def __init__(self, user_internal_id=-1, text=None, self_num=-1):
-        self.user_internal_id = user_internal_id
+    def __init__(self, user_chat_id=-1, text=None, self_num=-1):
+        self.user_chat_id = user_chat_id
         self.self_num = self_num
         self.text = text
         self.condition = self.FBType.UNREAD
 
     def restore(self, original):
-        self.user_internal_id = original['user_internal_id']
+        self.user_chat_id = original['user_chat_id']
         self.self_num = original['self_num']
         self.text = original['text']
         self.condition = original['condition']
@@ -102,7 +102,7 @@ class Feedback:
 
     def __dict__(self):
         return {
-            'user_internal_id': self.user_internal_id,
+            'user_chat_id': self.user_chat_id,
             'self_num': self.self_num,
             'text': self.text,
             'condition': self.condition
@@ -116,7 +116,7 @@ class Db:
             print("Read!")
         except FileNotFoundError:
             print("Updating...")
-            self.users = [User() for _ in range(0)]
+            self.users = {0: User()}
             self.feedback = [Feedback() for _ in range(0)]
             self.timetable = Timetable.Timetable()
             # self.timetable.update()
@@ -127,19 +127,13 @@ class Db:
     def write_feedback(self):
         IO.FileIO.write_json("feedback.json", [fb.__dict__() for fb in self.feedback])
 
-    def add_feedback(self, user_internal_id=-1, text=None):
+    def add_feedback(self, user_chat_id=-1, text=None):
         if len(self.feedback) == 0:
             f_n = 0
         else:
             f_n = self.feedback[-1].self_num
-        self.feedback.append(Feedback(user_internal_id, text, f_n))
+        self.feedback.append(Feedback(user_chat_id, text, f_n))
         self.write_feedback()
-        
-    def add_feedback_by_message(self, message):
-        user_internal_id = self.find_user(message.from_user.id)
-        if user_internal_id == -1:
-            raise ValueError("User not found exception", message.from_user.id, message.from_user.username, message.text)
-        self.add_feedback(user_internal_id, message.text)
 
     def remove_feedback(self, feedback_id):
         if 0 <= feedback_id < len(self.feedback):
@@ -148,31 +142,14 @@ class Db:
         else:
             raise ValueError("Too big index", feedback_id)
 
-    def find_user(self, name_or_id):
-        if type(name_or_id) == int:
-            if name_or_id < len(self.users):
-                return name_or_id
-            for i in range(len(self.users)):
-                if self.users[i].user_id == name_or_id:
-                    return i
-        else:
-            for i in range(len(self.users)):
-                if self.users[i].username == name_or_id:
-                    return i
-        return -1
-
     def add_user(self, message):
-        if len(self.users) == 0:
-            u_i = 0
-        else:
-            u_i = self.users[-1].internal_id
-        self.users.append(User(u_i, message.from_user.username, message.from_user.id,
-                               first_name=message.from_user.first_name))
+        self.users[message.from_user.id] = User(len(self.users), message.from_user.username, message.from_user.id,
+                                                first_name=message.from_user.first_name)
 
-    def set_user(self, user_id, n_type, n_type_id):
+    def set_user(self, user_chat_id, n_type, n_type_id):
         if n_type_id == -1:
             return "Я тебя не могу узнать. Может ещё разок?"
-        self.users[user_id].re_set(n_type, n_type_id)
+        self.users[user_chat_id].re_set(n_type, n_type_id)
         if n_type == Type.CLASS:
             if self.timetable.c_n[n_type_id] == '10е':
                 return "Добро пожаловать в 10е"
@@ -183,13 +160,16 @@ class Db:
         return "Теперь Вы - представитель почётной проффессии - педагог " + self.timetable.t_n[n_type_id]
 
     def write_all(self):
-        IO.FileIO.write_json("users.json", [u.__dict__() for u in self.users])
+        # IO.FileIO.write_json("users.json", [u.__dict__() for u in self.users])
+        IO.FileIO.write_json("users.json", {key: self.users[key].__dict__() for key in list(self.users)})
         self.write_feedback()
         IO.FileIO.write_json("timetable.json", self.timetable)
         return True
 
     def read_all(self):
-        self.users = [User().restore(origin) for origin in IO.FileIO.read_json("users.json")]
+        # self.users = [User().restore(origin) for origin in IO.FileIO.read_json("users.json")]
+        u_t = IO.FileIO.read_json("users.json")
+        self.users = {key: User().restore(u_t[key]) for key in list(u_t)}
         self.timetable = Timetable.Timetable().restore(IO.FileIO.read_json("timetable.json"))
         self.feedback = [Feedback().restore(origin) for origin in IO.FileIO.read_json("feedback.json")]
         return self
@@ -211,12 +191,6 @@ class Db:
                 if i < len(array) + 1 and len(array[i + 1]) >= t and array[i + 1][:t].lower() == string:
                     return -1
                 return i
-        return -1
-
-    def get_user_id(self, user_id):
-        for i in range(len(self.users)):
-            if self.users[i].user_id == user_id or self.users[i].username == user_id:
-                return self.users[i].internal_id
         return -1
 
     def get_day_id(self, day):  # TODO: do
@@ -265,8 +239,6 @@ class Db:
                 return self.get_teacher_id(data)
             if type_ == Type.DAY:
                 return self.get_day_id(data)
-            if type_ == Type.USER:
-                return self.get_user_id(data)
         return -1
 
     def get(self, ind, type_):
@@ -279,5 +251,5 @@ class Db:
         if type_ == Type.DAY:
             return self.timetable.d_n[ind]
         if type_ == Type.USER:
-            return self.users[ind]
+            return self.users[list(self.users)[ind]]
         return -1

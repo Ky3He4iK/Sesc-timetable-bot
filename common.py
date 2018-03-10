@@ -1,6 +1,7 @@
 import config
 import logging
 import telebot
+from telebot import types
 
 
 class Message:
@@ -25,6 +26,8 @@ class Edit:
         self.inline_keyboard = inline_keyboard
 
 
+bells = '\n'.join(["9:00 - 9.40", "9:50 - 10.30", "10:45 - 11.25", "11:40 - 12.20", "12:35 - 13.15", "13:35 - 14.15",
+                   "14:35 - 15.15"])
 DEBUG = True
 pool_to_send = [Message() for _ in range(0)]
 pool_to_edit = [Edit() for _ in range(0)]

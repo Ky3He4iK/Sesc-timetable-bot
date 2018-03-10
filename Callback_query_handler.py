@@ -1,16 +1,30 @@
 from telebot import types
+from Type import *
 
 import common
-import IO
 
 
 def main(call, db):
-    IO.FileIO.write("call_query.txt", str(call.__dict__), True)
-    print(call.__dict__)
-    keyboard = types.InlineKeyboardMarkup()
-    callback_button = types.InlineKeyboardButton(text="Do not touch", callback_data="touched")
-    keyboard.add(callback_button)
-    common.pool_to_edit.append(common.Edit(text="new text", chat_id=call.from_user.id, inline_keyboard=keyboard,
+    def extract_id_from_text(text):
+        return [int(s) for s in text.split('.')]
+    data = extract_id_from_text(call.data)
+    text = "Чем могу помочь?"
+    keyboard = None
+    if data[0] == 2:
+        if data[1] == 1:
+            text = "Расписание звонков:\n" + common.bells
+    elif data[0] == 3:
+        u_settings = db.users[call.from_user.id].settings
+        if u_settings.default_presentation == Presentation.ALL_WEEK:
+            text = db.timetable.get_timetable(u_settings.type_id, u_settings.type_name)
+        elif u_settings.default_presentation == Presentation.TODAY:
+            text = db.timetable.get_timetable_today(u_settings.type_id, u_settings.type_name)
+        elif u_settings.default_presentation == Presentation.TOMORROW:
+            text = db.timetable.get_timetable_tomorrow(u_settings.type_id, u_settings.type_name)
+        elif u_settings.default_presentation == Presentation.NEAR:
+            text = db.timetable.get_timetable_near(u_settings.type_id, u_settings.type_name)
+        # register next step handler
+    common.pool_to_edit.append(common.Edit(text=text, chat_id=call.from_user.id, inline_keyboard=keyboard,
                                            message_id=call.message.message_id))
 
 

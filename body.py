@@ -18,12 +18,12 @@ class Context:
     def __init__(self):
         def set_default_keyboard():
             keyboard = types.InlineKeyboardMarkup(row_width=3)
-            callback_buttons = [types.InlineKeyboardButton(text="Timetable", callback_data="4.0 tt"),
-                                types.InlineKeyboardButton(text="Changes", callback_data="5.0 changes"),
-                                types.InlineKeyboardButton(text="Free rooms", callback_data="6.0 free"),
-                                types.InlineKeyboardButton(text="Bells", callback_data="3.1 bells"),
-                                types.InlineKeyboardButton(text="Settings", callback_data="7.0 settings"),
-                                types.InlineKeyboardButton(text="Another", callback_data="8.0 another")]
+            callback_buttons = [types.InlineKeyboardButton(text="Расписание", callback_data="3.0"),
+                                types.InlineKeyboardButton(text="Изменения", callback_data="4.0"),
+                                types.InlineKeyboardButton(text="Свободные", callback_data="5.0"),
+                                types.InlineKeyboardButton(text="Звонки", callback_data="2.1"),
+                                types.InlineKeyboardButton(text="Настройки", callback_data="7.0"),
+                                types.InlineKeyboardButton(text="Прочее", callback_data="8.0")]
             keyboard.add(callback_buttons[0], callback_buttons[1], callback_buttons[2], callback_buttons[3],
                          callback_buttons[4], callback_buttons[5])
             return keyboard
@@ -48,14 +48,12 @@ class Context:
         def _reply_ping(message):
             common.logger.info(message)
             self.bot.send_message(message.chat.id, "Pong!")
-            self.on_user_message(self.db.find_user(message.from_user.id))
+            self.on_user_message(message.from_user.id)
 
         @self.bot.message_handler(content_types=['text'], func=lambda message: message.text[0] == '/')
         def _reply(message):
-            common.pool_to_send.append(common.Message("text", message.from_user.id))
+            self.on_user_message(message.from_user.id)
             common.logger.info(message)
-            if common.DEBUG:
-                return
             try:
                 self.mes_proc(message)
             except BaseException as e:
@@ -67,16 +65,16 @@ class Context:
 
         @self.bot.message_handler(func=lambda message: True)
         def _reply_default(message):
-            self.on_user_message(self.db.find_user(message.from_user.id))
+            self.on_user_message(message.from_user.id)
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def test_callback(call):
             common.logger.info(call)
             Callback_query_handler.main(call, self.db)
 
-    def on_user_message(self, user_id):
-        if user_id != -1:
-            self.db.users[user_id].last_access = datetime.datetime.today().timestamp()
+    def on_user_message(self, user_chat_id):
+        if user_chat_id in self.db.users:
+            self.db.users[user_chat_id].last_access = datetime.datetime.today().timestamp()
 
     def write_error(self, err, mess=None):
         self.send_to_father("An exception occupied!")
@@ -118,16 +116,27 @@ class Context:
     def edit_message(self, chat_id, text, message_id, inline_keyboard=None):
         try:
             text = str(text)
-            if len(text) != 0:
-                if inline_keyboard is None:
-                    inline_keyboard = config.default_keyboard
-                try:
-                    self.bot.edit_message_text(text[:4096], chat_id, message_id, reply_markup=inline_keyboard)
-                except telebot.apihelper.ApiException as e:
-                    print(e.function_name, e.result, e.args)
-                    return False
+            if len(text) == 0:
+                return False
+            if inline_keyboard is None:
+                inline_keyboard = config.default_keyboard
+            while len(text) > 4094:
+                end_p = text[:4094].rfind('\n')
+                if end_p < 3800:
+                    end_p = text[:4094].rfind(' ')
+                    if end_p < 3600:
+                        end_p = 4094
+                if end_p == len(text) - 1:
+                    c_k = inline_keyboard
+                else:
+                    c_k = None
+                self.bot.send_message(chat_id, text[:end_p], reply_markup=c_k)
+                text = text[end_p:]
                 sleep(0.01)
-                return True
+            if len(text) != 0:
+                self.bot.edit_message_text(text, chat_id, message_id, reply_markup=inline_keyboard)
+                sleep(0.01)
+            return True
         except BaseException as e:
             self.write_error(e)
         return False
@@ -139,30 +148,25 @@ class Context:
     def mes_proc(self, message):
         try:
             print('Message!')
-            if message.text[0] == '/':
-                if message.text == '/start':
-                    if self.db.find_user(message.from_user.id) == -1:
-                        self.db.add_user(message)
-                        self.send_to_father("user added")
-                        text = "Привет, " + str(message.from_user.first_name) + \
-                               "!\nЧтобы настроить выдачу расписания зайди в прочее"
+            if message.text == '/start':
+                if message.from_user.id not in self.db.users:
+                    self.db.add_user(message)
+                    self.send_to_father("user added")
+                    text = "Привет, " + str(message.from_user.first_name) + \
+                           "!\nЯ буду показывать тебе расписание, для начала, кто ты?"
 
-                        # TODO: write a normal start message and add set class on startup
-                    else:
-                        text = str(message.from_user.first_name) + ", ты уже зарегистрирован"
-                elif message.text == '/menu':
-                    text = "Типа главное меню //TODO: write normal texts"  # TODO: ну ты понел
-                elif message.text == '/help':
-                    text = config.help_mes
+                    # TODO: write a normal start message and add set class on startup
                 else:
-                    text = "Старые команды не работают"
-                common.pool_to_send.append(common.Message(text=text, to_user_id=message.from_user.id,
-                                                          inline_keyboard=None))
-                # TODO: do
+                    text = str(message.from_user.first_name) + ", ты уже зарегистрирован"
+            elif message.text == '/menu':
+                text = "Типа главное меню //TODO: write normal texts"  # TODO: ну ты понел
+            elif message.text == '/help':
+                text = config.help_mes
             else:
-                common.pool_to_send.append(common.Message(text="...", to_user_id=message.from_user.id,
-                                                          inline_keyboard=None))
-            self.on_user_message(self.db.find_user(message.from_user.id))
+                text = "Старые команды не работают"
+            common.pool_to_send.append(common.Message(text=text, to_user_id=message.from_user.id,
+                                                      inline_keyboard=None))
+            # TODO: do
         except Exception as e:
             common.pool_to_send.append(common.Message(text="так_блэт.пнг\nКостыли не выдержали и бот упал\nЯ бы "
                                                            "добавил ещё парочку, но ̶м̶н̶е̶ ̶л̶е̶н̶ь̶ у меня лапки :3",
@@ -223,7 +227,7 @@ class Context:
                     for changesCell in self.db.timetable.changes.changes) + \
                        "\nВсегда можно отказаться от этих уведомлений в настройках (если я их сделал)"
             is_ok = True
-            for user in self.db.timetable.users:
+            for user in list(self.db.timetable.users.values()):
                 if (user.type_name != Type.CLASS or self.db.timetable.changes.has_changes[user.type_id]) and \
                         user.notifications:
                     if user.type_name == Type.CLASS:

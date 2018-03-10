@@ -1,5 +1,6 @@
 from Type import Type
 import TClasses
+import common
 
 
 class Timetable:
@@ -196,6 +197,21 @@ class Timetable:
                     else:
                         answer += '███' + '\n'''
         return answer
+
+    def get_timetable_today(self, ind, tt_type):
+        return self.get_timetable(ind, tt_type, common.c_day % 6)
+
+    def get_timetable_tomorrow(self, ind, tt_type):
+        return self.get_timetable(ind, tt_type, ((common.c_day + 1) % 6) if common.c_day != 6 else 0)
+
+    def get_timetable_near(self, ind, tt_type):
+        if common.c_day > 5:
+            c_d, c_l = 0, 0
+        elif common.c_les > 6:
+            c_d, c_l = common.c_day + 1, 0
+        else:
+            c_d, c_l = common.c_day, common.c_les
+        return self.get_timetable_les(ind, tt_type, c_l, c_d % 6)
 
     def get_timetable(self, ind, tt_type, day=7):
         def get_timetable_title():
