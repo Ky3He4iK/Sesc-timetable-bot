@@ -156,6 +156,24 @@ class FreeRoomsAll:
             return timetable.d_n[day] + ':\n' + '\n'.join(self.form(timetable, day, l) for l in range(7))
         return str(les + 1) + '. ' + ', '.join(self.all[day].day[les].lesson)
 
+    def get_free_today(self, timetable):
+        return self.form(timetable, common.c_day % 6)
+
+    def get_free_tomorrow(self, timetable):
+        return self.form(timetable, ((common.c_day + 1) % 6) if common.c_day != 6 else 0)
+
+    def get_free_near(self, timetable):
+        if common.c_day > 5:
+            c_d, c_l = 0, 0
+        elif common.c_les > 6:
+            c_d, c_l = common.c_day + 1, 0
+        else:
+            c_d, c_l = common.c_day, common.c_les
+        return self.form(timetable, c_l, c_d % 6)
+
+    def get_free(self, timetable, day=7, les=-1):
+        return self.form(timetable, day, les)
+
 
 class Changes:
     def __init__(self, class_count=0):
@@ -205,11 +223,11 @@ class Changes:
         if class_ind is None:
             ans = ''
             for change_cell in self.changes:
-                ans += change_cell.class_ind + ':\n'
+                ans += timetable.c_n[change_cell.class_ind] + ':\n'
                 for ch_d in change_cell.change_data:
                     ans += ch_d + '\n'
                 ans += '\n'
-            ans = timetable.days[self.change_day].name + ":\n" + ans
+            ans = timetable.d_n[self.change_day] + ":\n" + ans
             if not inline:
                 ans = "Изменения на " + ans
             return ans
@@ -220,10 +238,10 @@ class Changes:
                     for ch_d in change_cell.change_data:
                         ans += ch_d + '\n'
                     if inline:
-                        return timetable.days[self.change_day].name + ":\n" + ans
-                    return "Изменения на " + timetable.days[self.change_day].name + " для " + \
-                           timetable.classes[class_ind].name + ":\n" + ans
+                        return timetable.d_n[self.change_day] + ":\n" + ans
+                    return "Изменения на " + timetable.d_n[self.change_day] + " для " + \
+                           timetable.c_n[class_ind] + ":\n" + ans
             common.pool_to_send.append(str(class_ind) + " - класс Шредингера в плане изменений")
             return "так_блэт.пнг\nЭтого не должно призойти!\nШредингер будет доволен"
         else:
-            return "Нету изменений для " + timetable.classes[class_ind].name
+            return "Нету изменений для " + timetable.c_n[class_ind]

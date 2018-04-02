@@ -1,7 +1,5 @@
 import config
-import logging
 import telebot
-from telebot import types
 
 
 class Message:

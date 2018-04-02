@@ -9,9 +9,10 @@ class Type:
 
 
 class Presentation:
-    ALL_WEEK = 0
-    TODAY = 1
-    TOMORROW = 2
-    NEAR = 3
-    ALL_CLASSES = 4
-    CURRENT_CLASS = 5
+    ALL_WEEK = 1
+    TODAY = 2
+    TOMORROW = 3
+    NEAR = 4
+    ALL_CLASSES = 5
+    CURRENT_CLASS = 6
+    OTHER = 7

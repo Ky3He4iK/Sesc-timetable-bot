@@ -132,10 +132,12 @@ class Timetable:
             return ['█' * len(a) for a in arr]'''
         def group_to_str(tt_cell):
             if tt_cell.room_ind != self.trap:
-                return (self.c_n[tt_cell.class_ind] + ' ' if tt_type != Type.CLASS else "") + \
-                       ('(' + str(tt_cell.group_ind) + ') ' if tt_cell.group_ind != 0 else "") + tt_cell.subject + \
-                       (' - ' + str(self.t_n[tt_cell.teacher_ind]) if tt_type != Type.TEACHER else "") + \
-                       (' в ' + self.get_room(tt_cell.room_ind) if tt_type != Type.ROOM else "")
+                class_s = (self.c_n[tt_cell.class_ind] + ' ' if tt_type != Type.CLASS else "")
+                group_s = ('(' + str(tt_cell.group_ind) + ') ' if tt_cell.group_ind != 0 else "")
+                teacher = (' - ' + str(self.t_n[tt_cell.teacher_ind]) if tt_type != Type.TEACHER else "")
+                room = (' в ' + self.get_room(tt_cell.room_ind) if tt_type != Type.ROOM else "")
+                sub = '|'.join(tt_cell.subject)
+                return class_s + group_s + sub + teacher + room
             else:
                 return 'ACCESS DENIED'
 
@@ -153,7 +155,7 @@ class Timetable:
             answer += '\0--------------------\n'
         else:
             lessons.sort()
-            answer += '\n'.join(group_to_str(les) for les in lessons)
+            answer += '\n'.join(group_to_str(les) for les in lessons) + '\n'
             '''if tt_type != Type.CLASS:
                 cl, g_i, s_i, t_i, r_i = [], [], [], [], []
                 for group in lessons:
@@ -211,7 +213,7 @@ class Timetable:
             c_d, c_l = common.c_day + 1, 0
         else:
             c_d, c_l = common.c_day, common.c_les
-        return self.get_timetable_les(ind, tt_type, c_l, c_d % 6)
+        return self.get_timetable_les(tt_type, c_d % 6, c_l, ind)
 
     def get_timetable(self, ind, tt_type, day=7):
         def get_timetable_title():
@@ -238,7 +240,7 @@ class Timetable:
         def get_timetable_main(day_ind):
             if day_ind == 7:
                 return '\n'.join(get_timetable_main(d) for d in range(6))
-            ans = self.d_n[day_ind]
+            ans = self.d_n[day_ind] + '\n'
             h_l = False
             tt_a = []
             last_les = -1

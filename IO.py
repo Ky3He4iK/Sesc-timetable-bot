@@ -19,7 +19,7 @@ class FileIO:
     def write_json(file_name, for_json, rewrite=True):
         # FileIO.write(file_name, json.dumps(for_json, sort_keys=True, indent=1, default=lambda x: x.__dict__()),
         # rewrite)
-        if type(for_json) == list:
+        if type(for_json) == list or type(for_json) == dict:
             FileIO.write(file_name, json.dumps(for_json, sort_keys=True, indent=1), rewrite)
         else:
             FileIO.write(file_name, json.dumps(for_json.__dict__(), sort_keys=True, indent=1), rewrite)

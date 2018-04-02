@@ -1,4 +1,5 @@
 import telebot
+import requests
 import datetime
 import logging
 from threading import Thread
@@ -9,7 +10,7 @@ from Db import Db
 import common
 import config
 from Type import Type
-import Callback_query_handler
+import Message_handler
 import update_timetable
 # from old import legacy_hub
 
@@ -18,12 +19,12 @@ class Context:
     def __init__(self):
         def set_default_keyboard():
             keyboard = types.InlineKeyboardMarkup(row_width=3)
-            callback_buttons = [types.InlineKeyboardButton(text="Расписание", callback_data="3.0"),
-                                types.InlineKeyboardButton(text="Изменения", callback_data="4.0"),
-                                types.InlineKeyboardButton(text="Свободные", callback_data="5.0"),
-                                types.InlineKeyboardButton(text="Звонки", callback_data="2.1"),
-                                types.InlineKeyboardButton(text="Настройки", callback_data="7.0"),
-                                types.InlineKeyboardButton(text="Прочее", callback_data="8.0")]
+            callback_buttons = [types.InlineKeyboardButton(text="Расписание", callback_data="3.0.-1.-1.-1.-1.-1.-1"),
+                                types.InlineKeyboardButton(text="Изменения", callback_data="4.0.-1.-1.-1.-1.-1.-1"),
+                                types.InlineKeyboardButton(text="Свободные", callback_data="5.0.-1.-1.-1.-1.-1.-1"),
+                                types.InlineKeyboardButton(text="Звонки", callback_data="2.1.-1.-1.-1.-1.-1.-1"),
+                                types.InlineKeyboardButton(text="Настройки", callback_data="6.0.-1.-1.-1.-1.-1.-1"),
+                                types.InlineKeyboardButton(text="Прочее", callback_data="7.0.-1.-1.-1.-1.-1.-1")]
             keyboard.add(callback_buttons[0], callback_buttons[1], callback_buttons[2], callback_buttons[3],
                          callback_buttons[4], callback_buttons[5])
             return keyboard
@@ -55,7 +56,7 @@ class Context:
             self.on_user_message(message.from_user.id)
             common.logger.info(message)
             try:
-                self.mes_proc(message)
+                Message_handler.message(message, self.db)
             except BaseException as e:
                 self.bot.send_message(message.chat.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
                                                        "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код обработки"
@@ -70,7 +71,14 @@ class Context:
         @self.bot.callback_query_handler(func=lambda call: True)
         def test_callback(call):
             common.logger.info(call)
-            Callback_query_handler.main(call, self.db)
+            try:
+                Message_handler.callback(call, self.db)
+            except BaseException as e:
+                print(e, e.with_traceback(e.__traceback__))
+                self.bot.send_message(call.from_user.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
+                                                         "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код "
+                                                         "обработки ошибок")
+                self.send_to_father("An GREAT ERROR occupied")
 
     def on_user_message(self, user_chat_id):
         if user_chat_id in self.db.users:
@@ -104,11 +112,13 @@ class Context:
                         end_p = 4094
                 self.bot.send_message(chat_id, text[:end_p], disable_notification=silent)
                 text = text[end_p:]
-                sleep(0.01)
+                sleep(1 / 30)
             if len(text) != 0:
                 self.bot.send_message(chat_id, text, reply_markup=inline_keyboard, disable_notification=silent)
-                sleep(0.01)
+                sleep(1 / 30)
             return True
+        except requests.exceptions.ConnectionError:
+            pass
         except BaseException as e:
             self.write_error(e)
             return False
@@ -130,12 +140,18 @@ class Context:
                     c_k = inline_keyboard
                 else:
                     c_k = None
-                self.bot.send_message(chat_id, text[:end_p], reply_markup=c_k)
+                try:
+                    self.bot.send_message(chat_id, text[:end_p], reply_markup=c_k)
+                except telebot.apihelper.ApiException:
+                    pass
                 text = text[end_p:]
-                sleep(0.01)
+                sleep(1 / 30)
             if len(text) != 0:
-                self.bot.edit_message_text(text, chat_id, message_id, reply_markup=inline_keyboard)
-                sleep(0.01)
+                try:
+                    self.bot.edit_message_text(text, chat_id, message_id, reply_markup=inline_keyboard)
+                except telebot.apihelper.ApiException:
+                    pass
+                sleep(1 / 30)
             return True
         except BaseException as e:
             self.write_error(e)
@@ -145,16 +161,15 @@ class Context:
     def send_to_father(text):
         common.pool_to_send = [common.Message(text=text)] + common.pool_to_send
 
-    def mes_proc(self, message):
+    '''def mes_proc(self, message):  # todo: remove
         try:
             print('Message!')
             if message.text == '/start':
                 if message.from_user.id not in self.db.users:
                     self.db.add_user(message)
-                    self.send_to_father("user added")
+                    self.send_to_father("user added: " + message.from_user.username + " - " + message.from_user.id)
                     text = "Привет, " + str(message.from_user.first_name) + \
                            "!\nЯ буду показывать тебе расписание, для начала, кто ты?"
-
                     # TODO: write a normal start message and add set class on startup
                 else:
                     text = str(message.from_user.first_name) + ", ты уже зарегистрирован"
@@ -173,7 +188,7 @@ class Context:
                                                       to_user_id=message.from_user.id, inline_keyboard=None))
             self.write_error(e, message)
             return None
-        # todo: add sudoadd for users
+        # todo: add sudoadd for users'''
 
     def thread_time(self):
         while True:
@@ -229,7 +244,7 @@ class Context:
             is_ok = True
             for user in list(self.db.timetable.users.values()):
                 if (user.type_name != Type.CLASS or self.db.timetable.changes.has_changes[user.type_id]) and \
-                        user.notifications:
+                        user.settings.notifications:
                     if user.type_name == Type.CLASS:
                         text = gen_changes(user.type_id)
                         is_ok = is_ok and (text is not False)

@@ -10,6 +10,7 @@ import common
 import requests
 # import config
 
+# todo: add markdown
 
 def check_update_system():
     import Timetable
@@ -40,6 +41,8 @@ def thread_start():
             context.bot.polling(none_stop=False)
         except KeyboardInterrupt:
             exit(0)
+        except requests.ConnectionError:
+            print("exception error")
         except BaseException as e:
             context.write_error(e)
             sleep(3)
@@ -65,12 +68,13 @@ if __name__ == '__main__':
                                       silent=common.pool_to_send[0].silent,
                                       inline_keyboard=common.pool_to_send[0].inline_keyboard)
                 common.pool_to_send = common.pool_to_send[1:]
-                sleep(0.01)
+                sleep(1 / 30)
             if len(common.pool_to_edit) != 0:
                 context.edit_message(common.pool_to_edit[0].chat_id, common.pool_to_edit[0].text,
                                      common.pool_to_edit[0].message_id, common.pool_to_edit[0].inline_keyboard)
                 common.pool_to_edit = common.pool_to_edit[1:]
-            sleep(0.3)
+                sleep(1 / 30)
+            sleep(1 / 30)
         except KeyboardInterrupt:
             exit(0)
         except BaseException as err:

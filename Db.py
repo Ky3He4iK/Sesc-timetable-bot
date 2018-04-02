@@ -1,13 +1,14 @@
 import IO
 import Timetable
 import update_timetable
-from Type import Type
+from Type import *
 
 
 class User:
     class Settings:
         def __init__(self, type_name=Type.CLASS, type_id=10, notifications=True, current_state=0,
-                     default_presentation=0, default_presentation_changes=4, default_presentation_rooms=0):
+                     default_presentation=Presentation.ALL_WEEK, default_presentation_changes=Presentation.ALL_CLASSES,
+                     default_presentation_rooms=Presentation.ALL_WEEK):
             self.type_name = type_name
             self.type_id = type_id
             self.notifications = notifications
@@ -39,12 +40,11 @@ class User:
             self.default_presentation_rooms = original['default_presentation_rooms']
             return self
 
-    def __init__(self, internal_id=-1, username=None, user_id=None, type_name=Type.CLASS, type_id=10,
-                 notifications=True, first_name=None, last_access=0):
+    def __init__(self, internal_id=-1, username=None, user_id=None, type_name=Type.CLASS, type_id=5,
+                 first_name=None, last_access=0):
         self.internal_id = internal_id
         self.username = username
         self.user_id = user_id
-        self.notifications = notifications
         self.first_name = first_name
         self.last_access = last_access
         self.settings = self.Settings(type_name, type_id)
@@ -53,7 +53,6 @@ class User:
         self.internal_id = original['internal_id']
         self.username = original['username']
         self.user_id = original['user_id']
-        self.notifications = original['notifications']
         if 'last_access' in original:
             self.last_access = original['last_access']
         else:
@@ -72,7 +71,6 @@ class User:
             'internal_id': self.internal_id,
             'username': self.username,
             'user_id': self.user_id,
-            'notifications': self.notifications,
             'first_name ': self.first_name,
             'last_access': self.last_access,
             'settings': self.settings.__dict__()
@@ -116,7 +114,7 @@ class Db:
             print("Read!")
         except FileNotFoundError:
             print("Updating...")
-            self.users = {0: User()}
+            self.users = {0: User() for _ in range(0)}
             self.feedback = [Feedback() for _ in range(0)]
             self.timetable = Timetable.Timetable()
             # self.timetable.update()
@@ -169,7 +167,7 @@ class Db:
     def read_all(self):
         # self.users = [User().restore(origin) for origin in IO.FileIO.read_json("users.json")]
         u_t = IO.FileIO.read_json("users.json")
-        self.users = {key: User().restore(u_t[key]) for key in list(u_t)}
+        self.users = {int(key): User().restore(u_t[key]) for key in list(u_t)}
         self.timetable = Timetable.Timetable().restore(IO.FileIO.read_json("timetable.json"))
         self.feedback = [Feedback().restore(origin) for origin in IO.FileIO.read_json("feedback.json")]
         return self
