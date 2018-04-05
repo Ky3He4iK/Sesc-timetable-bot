@@ -10,7 +10,9 @@ import common
 import requests
 # import config
 
+# todo register next step handler
 # todo: add markdown
+
 
 def check_update_system():
     import Timetable
@@ -24,11 +26,11 @@ def check_update_system():
     print(b, time.time() - s_t)
     if b:
         s_t = time.time()
-        IO.FileIO.write_json("tt.json", t)
+        IO.FileIO.write_json("data/tt.json", t)
         print("Written", time.time() - s_t)
         s_t = time.time()
-        t.restore(IO.FileIO.read_json("tt.json"))
-        IO.FileIO.write_json("tt1.json", t)
+        t.restore(IO.FileIO.read_json("data/tt.json"))
+        IO.FileIO.write_json("data/tt1.json", t)
         # input()
         print(time.time() - s_t)
     else:
@@ -81,7 +83,7 @@ if __name__ == '__main__':
             common.logger.error(err, exc_info=True)
             print(str(err), err.args, err.__traceback__)
             print(err.with_traceback(err.__traceback__))
-            f = open("Error-bot-" + datetime.datetime.today().strftime("%y%m%d-%Hh") + '.log', 'a')
+            f = open("data/Error-bot-" + datetime.datetime.today().strftime("%y%m%d-%Hh") + '.log', 'a')
             f.write(
                 datetime.datetime.today().strftime("%M:%S-%f") + str(err) + ' ' + str(err.args) + '\n\n')
             f.close()

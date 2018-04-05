@@ -61,6 +61,7 @@ class Context:
                 self.bot.send_message(message.chat.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
                                                        "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код обработки"
                                                        " ошибок")
+                common.logger.error(e)
                 self.send_to_father("An GREAT ERROR occupied")
                 self.write_error(e, message)
 
@@ -72,9 +73,11 @@ class Context:
         def test_callback(call):
             common.logger.info(call)
             try:
-                Message_handler.callback(call, self.db)
+                Message_handler.callback(user_id=call.from_user.id, data=self.extract_data_from_text(call.data),
+                                         mes_id=call.message.message_id, db=self.db)
             except BaseException as e:
                 print(e, e.with_traceback(e.__traceback__))
+                common.logger.error(e)
                 self.bot.send_message(call.from_user.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
                                                          "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код "
                                                          "обработки ошибок")
@@ -89,7 +92,7 @@ class Context:
         logging.error(err, exc_info=True)
         print(str(err), err.args, err.__traceback__)
         print(err.with_traceback(err.__traceback__))
-        f = open("Error-bot-" + datetime.datetime.today().strftime("%y%m%d-%Hh") + '.log', 'a')
+        f = open("data/Error-bot-" + datetime.datetime.today().strftime("%y%m%d-%Hh") + '.log', 'a')
         if mess is None:
             text = 'HZ CHTO ETO'
         else:
@@ -244,7 +247,7 @@ class Context:
             is_ok = True
             for user in list(self.db.timetable.users.values()):
                 if (user.type_name != Type.CLASS or self.db.timetable.changes.has_changes[user.type_id]) and \
-                        user.settings.notifications:
+                        user.settings.notify:
                     if user.type_name == Type.CLASS:
                         text = gen_changes(user.type_id)
                         is_ok = is_ok and (text is not False)
@@ -272,3 +275,7 @@ class Context:
             except BaseException as e:
                 self.write_error(e)
         # Todo: add backups
+
+    @staticmethod
+    def extract_data_from_text(text):
+        return [int(s) for s in text.split('.')]

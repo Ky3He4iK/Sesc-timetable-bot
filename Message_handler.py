@@ -9,10 +9,7 @@ def kb_button(text="Назад", data=([2, 0] + [-1] * 6)):
     return types.InlineKeyboardButton(text=text, callback_data='.'.join(str(d) for d in data))
 
 
-def callback(call, db):
-    def extract_id_from_text(callback_text):
-        return [int(s) for s in callback_text.split('.')]
-
+def callback(user_id, data, db, mes_id=None):
     def presentation_to_string(presentation):
         if presentation == Presentation.CURRENT_CLASS:
             return "для своего класса"
@@ -27,29 +24,42 @@ def callback(call, db):
         if presentation == Presentation.TODAY:
             return "на сегодня"
 
-    data = extract_id_from_text(call.data)
-    cur_state = ".".join(str(d) for d in data)
+    # data = extract_id_from_text(call.data)
+    cur_state = data
     text = "Чем могу помочь?"
     keyboard = None
     print(data)
     if data[0] == 1:
-        d = '.'.join(str(i) for i in data[1:])
-        text = "todo " + d  # todo: yes
+        if data[1] == 0:
+            text = "Выбирите тип"
+        elif data[1] == Type.CLASS:
+            text = '\n'.join('/c_' + str(num + 1) + ' : ' + db.timetable.c_n[num]
+                             for num in range(len(db.timetable.c_n)))
+        elif data[1] == Type.TEACHER:
+            text = '\n'.join('/t_' + str(num + 1) + ' : ' + db.timetable.c_n[num]
+                             for num in range(len(db.timetable.t_n)))
+        elif data[1] == Type.ROOM:
+            text = '\n'.join('/r_' + str(num + 1) + ' : ' + db.timetable.c_n[num]
+                             for num in range(len(db.timetable.r_i)))
+        cur_state = data[2:4] + [-1] * 6
+        keyboard = types.InlineKeyboardMarkup(row_width=3)
+        keyboard.add(kb_button("Класс", [1, Type.CLASS] + data[2:4] + [-1] * 4),
+                     kb_button("Учитель", [1, Type.TEACHER] + data[2:4] + [-1] * 4),
+                     kb_button("Кабинет", [1, Type.ROOM] + data[2:4] + [-1] * 4))
 
-    elif data[0] == 2:  # todo strip to format
+    elif data[0] == 2:
         if data[1] == 1:
             text = "Расписание звонков:\n" + common.bells
         elif len(data) > 2:
             if data[-1] == -1:
-                call.data = "1.2.-1.-1.-1.-1.-1.-1"
-                return callback(call, db)
-            db.users[call.from_user.id].settings.type_name = data[2]
-            db.users[call.from_user.id].settings.type_id = data[3]
+                return callback(user_id, [1, 2] + [-1] * 6, db, mes_id)
+            db.users[user_id].settings.type_name = data[2]
+            db.users[user_id].settings.type_id = data[3]
         elif data[1] == 3:
             text = "Ну что же ты так?("
 
     elif data[0] == 3:
-        u_settings = db.users[call.from_user.id].settings
+        u_settings = db.users[user_id].settings
         ind_type = [data[5], data[4]]  # why reverse? Just for lulz!
         day = data[6]
 
@@ -59,25 +69,10 @@ def callback(call, db):
             ind_type[0] = u_settings.type_id
         if ind_type[1] == -1:
             ind_type[1] = u_settings.type_name
-
-        if day == 7:
-            if data[1] == Presentation.ALL_WEEK or (data[1] == 0 and
-                                                    u_settings.default_presentation == Presentation.ALL_WEEK):
-                text = db.timetable.get_timetable(ind_type[0], ind_type[1])
-            elif data[1] == Presentation.TODAY or (data[1] == 0 and
-                                                   u_settings.default_presentation == Presentation.TODAY):
-                text = db.timetable.get_timetable_today(ind_type[0], ind_type[1])
-            elif data[1] == Presentation.TOMORROW or (data[1] == 0 and
-                                                      u_settings.default_presentation == Presentation.TOMORROW):
-                text = db.timetable.get_timetable_tomorrow(ind_type[0], ind_type[1])
-            elif data[1] == Presentation.NEAR or (data[1] == 0 and
-                                                  u_settings.default_presentation == Presentation.NEAR):
-                text = db.timetable.get_timetable_near(ind_type[0], ind_type[1])
-            elif data[1] == Presentation.OTHER or (data[1] == 0 and
-                                                   u_settings.default_presentation == Presentation.OTHER):
-                text = db.timetable.get_timetable(ind_type[0], ind_type[1], data[-1])
-        else:
-            text = db.timetable.get_timetable(ind_type[0], ind_type[1], day)
+        pr = u_settings.default_presentation
+        if data[1] != 0:
+            pr = data[1]
+        text = db.timetable.get_timetable(pr, ind_type[1], ind_type[0], day)
         keyboard = types.InlineKeyboardMarkup(row_width=3)
         ending = ind_type[::-1] + [day, data[1]]
         keyboard.add(kb_button("Сегодня", [3, Presentation.TODAY, -1, -1, ind_type[1], ind_type[0], day, data[1]]),  # 2
@@ -90,36 +85,31 @@ def callback(call, db):
                      kb_button("Назад", [2, 0] + [-1] * 6))
 
     elif data[0] == 4:
-        d_p = db.users[call.from_user.id].settings.default_presentation_changes
-        if data[1] == Presentation.ALL_CLASSES or (data[1] == 0 and d_p == Presentation.ALL_CLASSES):
-            text = db.timetable.changes.get_changes(db.timetable)
-        elif data[1] == Presentation.CURRENT_CLASS or (data[1] == 0 and d_p == Presentation.ALL_CLASSES):
-            text = db.timetable.changes.get_changes(db.timetable, db.users[call.from_user.id].settings.type_id)
-        elif data[1] == Presentation.OTHER and data[5] != -1:
+        d_p = db.users[user_id].settings.default_presentation_changes
+        if data[1] != 0:
+            d_p = data[1]
+        if d_p == Presentation.OTHER and data[5] != -1:
             text = db.timetable.changes.get_changes(db.timetable, data[5])
+        else:
+            text = db.timetable.changes.get_changes(db.timetable, d_p, db.users[user_id].settings.type_id)
         keyboard = types.InlineKeyboardMarkup(row_width=3)
-        k_bs = [kb_button("Все классы", [4, Presentation.ALL_CLASSES, -1, -1, -1, -1, -1, 5]),
-                kb_button("Определенный класс", [9, 0, 4, Presentation.OTHER, -1, -1, -1, 1]),
-                kb_button("\"Мой\" класс", [4, Presentation.CURRENT_CLASS, -1, -1, -1, -1, -1, 6])]
-        if db.users[call.from_user.id].settings.type_name == Type.CLASS:
+        k_bs = [kb_button("Все классы", [4, Presentation.ALL_CLASSES, -1, -1, -1, -1, -1, Presentation.ALL_CLASSES]),
+                kb_button("Определенный класс", [9, 0, 4, Presentation.OTHER, -1, -1, -1, Presentation.OTHER]),
+                kb_button("\"Мой\" класс", [4, Presentation.CURRENT_CLASS, -1, -1, -1, -1, -1,
+                                            Presentation.CURRENT_CLASS])]
+        if db.users[user_id].settings.type_name == Type.CLASS:
             keyboard.add(k_bs[0], k_bs[1], k_bs[2])
         else:
             keyboard.add(k_bs[0], k_bs[1])
         keyboard.add(kb_button())
 
-    elif data[0] == 5:  # todo strip to format
-        dp = db.users[call.from_user.id].settings.default_presentation
-        if data[1] == Presentation.ALL_WEEK or (data[1] == 0 and dp == Presentation.ALL_WEEK):
-            text = db.timetable.free_rooms.get_free(db.timetable)
-        elif data[1] == Presentation.TODAY or (data[1] == 0 and dp == Presentation.TODAY):
-            text = db.timetable.free_rooms.get_free_today(db.timetable)
-        elif data[1] == Presentation.TOMORROW or (data[1] == 0 and dp == Presentation.TOMORROW):
-            text = db.timetable.free_rooms.get_free_tomorrow(db.timetable)
-        elif data[1] == Presentation.NEAR or (data[1] == 0 and dp == Presentation.NEAR):
-            text = db.timetable.free_rooms.get_free_near(db.timetable)
-        elif data[6] != -1:
-            text = db.timetable.free_rooms.get_free(db.timetable, data[6])
-
+    elif data[0] == 5:
+        dp = db.users[user_id].settings.default_presentation
+        if data[1] != 0:
+            dp = data[1]
+        if data[6] == -1:
+            data[6] = 7
+        text = db.timetable.free_rooms.get_free_pres(db.timetable, dp, data[6])
         keyboard = types.InlineKeyboardMarkup(row_width=3)
         keyboard.add(kb_button("Сегодня", [5, Presentation.TODAY] + [-1] * 5 + [Presentation.TODAY]),  # 2
                      kb_button("Сейчас", [5, Presentation.NEAR] + [-1] * 5 + [Presentation.NEAR]),  # 4
@@ -128,71 +118,71 @@ def callback(call, db):
                      kb_button("Конкретный день", [8, 0, 5, data[1]] + [-1] * 3 + [data[1]]))  # 1
         keyboard.add(kb_button())
 
-    elif data[0] == 6:  # todo strip to format
+    elif data[0] == 6:
         if data[1] == 0 or data[1] == 1:
-            u_s = db.users[call.from_user.id].settings
+            if data[1] == 1:
+                db.users[user_id].settings.notify = not \
+                    db.users[user_id].settings.notify
+            u_s = db.users[user_id].settings
             text = "Ты, " + ("Ученик " if u_s.type_name == Type.CLASS else
                              ("Учитель, " if u_s.type_name == Type.TEACHER else "Кабинет №")) + \
-                   db.get(u_s.type_id, u_s.type_name) + "\n" + ("Получаешь" if u_s.notifications else "Получаешь") + \
+                   db.get(u_s.type_id, u_s.type_name) + "\n" + ("Получаешь" if u_s.notify else "Получаешь") + \
                    " уведомления об изменениях\nВывод по умолчанию:\n- Расписание: " + \
                    presentation_to_string(u_s.default_presentation) + "\n- Изменения: " + \
                    presentation_to_string(u_s.default_presentation_changes) + "\n- Свободные кабинеты: " + \
                    presentation_to_string(u_s.default_presentation_rooms) + "\nВыбирай, что хочешь изменить"
             keyboard = types.InlineKeyboardMarkup(row_width=3)
-            keyboard.add(types.InlineKeyboardButton(text="Оповещения вкл/выкл", callback_data="6.1"),
-                         types.InlineKeyboardButton(text="Изменить себя", callback_data="1.6.0"),
-                         types.InlineKeyboardButton(text="Расписание по дефолту", callback_data="6.2.0"),
-                         types.InlineKeyboardButton(text="Изменения по дефолту", callback_data="6.3.0"),
-                         types.InlineKeyboardButton(text="Свободные кабинеты по дефолту", callback_data="6.4.0"))
-            keyboard.add(types.InlineKeyboardButton(text="Назад", callback_data="2.0"))
-            if data[1] == 1:
-                db.users[call.from_user.id].settings.notifications = not \
-                    db.users[call.from_user.id].settings.notifications
-        elif len(data) > 2:
-            if data[1] == 3:
-                if data[2] != 0:
-                    db.users[call.from_user.id].settings.default_presentation_changes = data[2]
-                    call.data = "6.0"
-                    return callback(call, db)
-                text = "Выбирай!"
-                keyboard = types.InlineKeyboardMarkup(row_width=3)
-                k_bs = [types.InlineKeyboardButton(text="Все классы", callback_data="6.3.5"),
-                        types.InlineKeyboardButton(text="Мой класс", callback_data="6.3.6")]
-                if db.users[call.from_user.id].settings.type_name == Type.CLASS:
-                    keyboard.add(k_bs[0], k_bs[1])
-                else:
-                    keyboard.add(k_bs[0])
-                keyboard.add(types.InlineKeyboardButton(text="Назад", callback_data="2.0"))
-            elif data[1] == 2:
-                if data[2] != 0:
-                    db.users[call.from_user.id].settings.default_presentation = data[2]
-                    call.data = "6.0"
-                    return callback(call, db)
-                text = "Выбирай!"
-                keyboard = types.InlineKeyboardMarkup(row_width=3)
-                keyboard.add(types.InlineKeyboardButton(text="Вся неделя", callback_data="6.2.1"),
-                             types.InlineKeyboardButton(text="Текущий день", callback_data="6.2.2"),
-                             types.InlineKeyboardButton(text="Следующий день", callback_data="6.2.3"),
-                             types.InlineKeyboardButton(text="Ближайший урок", callback_data="6.2.4"))
-                keyboard.add(types.InlineKeyboardButton(text="Назад", callback_data="2.0"))
-            elif data[1] == 4:
-                if data[2] != 0:
-                    db.users[call.from_user.id].settings.default_presentation_rooms = data[2]
-                    call.data = "6.0"
-                    return callback(call, db)
-                text = "Выбирай!"
-                keyboard = types.InlineKeyboardMarkup(row_width=3)
-                keyboard.add(types.InlineKeyboardButton(text="Вся неделя", callback_data="6.4.1"),
-                             types.InlineKeyboardButton(text="Текущий день", callback_data="6.4.2"),
-                             types.InlineKeyboardButton(text="Следующий день", callback_data="6.4.3"),
-                             types.InlineKeyboardButton(text="Ближайший урок", callback_data="6.4.4"))
-                keyboard.add(types.InlineKeyboardButton(text="Назад", callback_data="2.0"))
-    elif data[0] == 7:  # todo strip to format
+            keyboard.add(kb_button("Оповещения вкл/выкл", [6, 1] + [-1] * 6),
+                         kb_button("Изменить себя", [1, 0, 6, 0] + [-1] * 4),
+                         kb_button("Расписание по дефолту", [6, 2] + [-1] * 6),
+                         kb_button("Изменения по дефолту", [6, 3] + [-1] * 6),
+                         kb_button("Свободные кабинеты по дефолту", [6, 4] + [-1] * 6))
+            keyboard.add(kb_button())
+
+        elif data[1] == 2:
+            if data[7] != -1:
+                db.users[user_id].settings.default_presentation = data[7]
+                return callback(user_id, [6, 0] + [-1] * 6, db, mes_id)
+            text = "Выбирай!"
+            keyboard = types.InlineKeyboardMarkup(row_width=3)
+            keyboard.add(kb_button("Вся неделя", [6, 2] + [-1] * 5 + Presentation.ALL_WEEK),
+                         kb_button("Текущий день", [6, 2] + [-1] * 5 + Presentation.TODAY),
+                         kb_button("Следущий день", [6, 2] + [-1] * 5 + Presentation.TOMORROW),
+                         kb_button("Ближайший урок", [6, 2] + [-1] * 5 + Presentation.NEAR))
+            keyboard.add(kb_button())
+
+        elif data[1] == 3:
+            if data[7] != -1:
+                db.users[user_id].settings.default_presentation_changes = data[7]
+                return callback(user_id, [6, 0] + [-1] * 6, db, mes_id)
+            text = "Выбирай!"
+            keyboard = types.InlineKeyboardMarkup(row_width=3)
+            k_bs = [kb_button("Все классы", [6, 3] + [-1] * 5 + [Presentation.ALL_CLASSES]),
+                    kb_button("\"Мой\" класс", [6, 3] + [-1] * 5 + [Presentation.CURRENT_CLASS])]
+            if db.users[user_id].settings.type_name == Type.CLASS:
+                keyboard.add(k_bs[0], k_bs[1])
+            else:
+                keyboard.add(k_bs[0])
+            keyboard.add(kb_button())
+
+        if data[1] == 4:
+            if data[7] != -1:
+                db.users[user_id].settings.default_presentation_rooms = data[7]
+                return callback(user_id, [6, 0] + [-1] * 6, db, mes_id)
+            text = "Выбирай!"
+            keyboard = types.InlineKeyboardMarkup(row_width=3)
+            keyboard.add(kb_button("Вся неделя", [6, 4] + [-1] * 5 + [Presentation.ALL_WEEK]),
+                         kb_button("Текущий день", [6, 4] + [-1] * 5 + [Presentation.TODAY]),
+                         kb_button("Следующий день", [6, 4] + [-1] * 5 + [Presentation.TOMORROW]),
+                         kb_button("Ближайший урок", [6, 4] + [-1] * 5 + [Presentation.NEAR]))
+            keyboard.add(kb_button())
+
+    elif data[0] == 7:
         keyboard = types.InlineKeyboardMarkup(row_width=3)
-        keyboard.add(types.InlineKeyboardButton(text="Информациа о боте", callback_data="7.1"),
-                     types.InlineKeyboardButton(text="Помощь", callback_data="7.2"),
-                     types.InlineKeyboardButton(text="Обратная связь", callback_data="7.3"),
-                     types.InlineKeyboardButton(text="Назад", callback_data="2.0"))
+        keyboard.add(kb_button("Информация о боте", [7, 1] + [-1] * 6),
+                     kb_button("Помощь", [7, 2] + [-1] * 6),
+                     kb_button("Обратная связь", [7, 3] + [-1] * 6),
+                     kb_button())
         if data[1] == 1:
             text = "Тут должна будет быть инфа о боте, когда-нибдь запилю"
         elif data[1] == 2:
@@ -201,26 +191,31 @@ def callback(call, db):
             text = "Ты хочень что-то рассказать о боте? Или просто по-общаться со мной? Давай! Напиши что-нибудь!"
         elif data[1] == 0:
             text = "Da-da?"
-    elif data[0] == 8:  # todo strip to format
+
+    elif data[0] == 8:
         text = "У тебя шикарный выбор"
-        d = '.'.join(str(i) for i in data[1:])
+        d = data[2:4] + [-1] * 2 + data[4:6]
         keyboard = types.InlineKeyboardMarkup(row_width=3)
-        keyboard.add(types.InlineKeyboardButton(text="Пн", callback_data=d + ".0"),
-                     types.InlineKeyboardButton(text="Вт", callback_data=d + ".1"),
-                     types.InlineKeyboardButton(text="Ср", callback_data=d + ".2"),
-                     types.InlineKeyboardButton(text="Чт", callback_data=d + ".3"),
-                     types.InlineKeyboardButton(text="Пт", callback_data=d + ".4"),
-                     types.InlineKeyboardButton(text="Сб", callback_data=d + ".5"))
-        # register next step handler
-    elif data[0] == 9:  # todo strip to format
-        d = '.'.join(str(i) for i in data[1:])
+        keyboard.add(kb_button("Пн", d + [0, data[7]]),
+                     kb_button("Вт", d + [1, data[7]]),
+                     kb_button("Ср", d + [2, data[7]]),
+                     kb_button("Чт", d + [3, data[7]]),
+                     kb_button("Пт", d + [4, data[7]]),
+                     kb_button("Сб", d + [5, data[7]]),
+                     kb_button("Вся неделя", d + [7, data[7]]))
+
+    elif data[0] == 9:
+        d = data[2:4] + [-1] * 6
         text = '\n'.join('/c_' + str(num + 1) + ' : ' + db.timetable.c_n[num] for num in range(len(db.timetable.c_n)))
         keyboard = types.InlineKeyboardMarkup(row_width=3)
-        keyboard.add(types.InlineKeyboardButton(text="Отмена", callback_data=d + ".-1"))
+        keyboard.add(kb_button("Обратно", d))
         cur_state = d
-    common.pool_to_edit.append(common.Edit(text=text, chat_id=call.from_user.id, inline_keyboard=keyboard,
-                                           message_id=call.message.message_id))
-    db.users[call.from_user.id].settings.current_state = cur_state
+
+    if mes_id is None:
+        common.pool_to_send.append(common.Message(text=text, to_user_id=user_id, inline_keyboard=keyboard))
+    else:
+        common.pool_to_edit.append(common.Edit(text=text, chat_id=user_id, inline_keyboard=keyboard, message_id=mes_id))
+    db.users[user_id].settings.current_state = cur_state
 
 
 def message(msg, db):
@@ -231,11 +226,8 @@ def message(msg, db):
             common.pool_to_send.append(common.Message(text="User added"))
             text = "Привет, " + str(msg.from_user.first_name) + \
                    "!\nЯ буду показывать тебе расписание, но сначала я должен узнать немного о тебе"
-            keyboard = types.InlineKeyboardMarkup().\
-                add(types.InlineKeyboardButton(text="Дальше", callback_data="1.2.0"))
-
-            # TODO: write a normal start message and add set class on startup
-            db.users[msg.from_user.id].settings.current_state = "2.0"
+            keyboard = types.InlineKeyboardMarkup().add(kb_button("Дальше"), [1, 0, 2, 0] + [-1] * 4)
+            db.users[msg.from_user.id].settings.current_state = [1, 0, 2, 0] + [-1] * 4
         else:
             text = str(msg.from_user.first_name) + ", ты уже зарегистрирован"
             keyboard = config.default_keyboard
@@ -257,15 +249,17 @@ def message(msg, db):
         else:
             msg.text = "/start"
             return message(msg, db)
-    elif msg.text == '/sudowrite':
+    elif msg.text == '/sudowrite' and msg.from_user.id == config.father_chat:
         db.write_all()
-    elif db.users[msg.from_user.id].settings.current_state == 0 or \
-            db.users[msg.from_user.id].settings.current_state == "0":
-        text = "Старые команды не работают. Используй новые с /menu"
-        common.pool_to_send.append(common.Message(text=text, to_user_id=msg.from_user.id))
-    else:
-        text = "Я всё равно не приму 🌚"
-        common.pool_to_send.append(common.Message(text=text, to_user_id=msg.from_user.id))
+    elif msg.text[0] == '/':
+        if (msg.text.startswith('/c_') or msg.text.startswith('/t_') or msg.text.startswith('/r_')) and \
+                msg.text[3:].isdecimal():
+            tp = Type.CLASS if msg.text[1] == 'c' else (Type.TEACHER if msg.text[1] == 't' else Type.ROOM)
+            ind = int(msg.text[3:])
+            if db.timetable.check_has(tp, ind):
+                data = db.users[msg.from_user.id].settings.current_state
+                data[4], data[5] = tp, ind
+                callback(user_id=msg.from_user.id, db=db, data=data)
 
 
 mes1 = {'photo': None, 'sticker': None, 'edit_date': None, 'new_chat_photo': None, 'document': None, 'contact': None,

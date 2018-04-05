@@ -6,12 +6,12 @@ from Type import *
 
 class User:
     class Settings:
-        def __init__(self, type_name=Type.CLASS, type_id=10, notifications=True, current_state=0,
+        def __init__(self, type_name=Type.CLASS, type_id=10, notify=True, current_state=0,
                      default_presentation=Presentation.ALL_WEEK, default_presentation_changes=Presentation.ALL_CLASSES,
                      default_presentation_rooms=Presentation.ALL_WEEK):
             self.type_name = type_name
             self.type_id = type_id
-            self.notifications = notifications
+            self.notify = notify
             self.current_state = current_state
             self.default_presentation = default_presentation  # 0 - all week; 1 - current day; 2 - near lesson
             self.default_presentation_changes = default_presentation_changes  # 4 - all changes; 5 - for one class
@@ -23,7 +23,7 @@ class User:
             return {
                 'type_name': self.type_name,
                 'type_id': self.type_id,
-                'notifications': self.notifications,
+                'notify': self.notify,
                 'current_state': self.current_state,
                 'default_presentation': self.default_presentation,
                 'default_presentation_changes': self.default_presentation_changes,
@@ -33,7 +33,7 @@ class User:
         def restore(self, original):
             self.type_name = original['type_name']
             self.type_id = original['type_id']
-            self.notifications = original['notifications']
+            self.notify = original['notify']
             self.current_state = original['current_state']
             self.default_presentation = original['default_presentation']
             self.default_presentation_changes = original['default_presentation_changes']
@@ -123,7 +123,7 @@ class Db:
             print("Updated!")
 
     def write_feedback(self):
-        IO.FileIO.write_json("feedback.json", [fb.__dict__() for fb in self.feedback])
+        IO.FileIO.write_json("data/feedback.json", [fb.__dict__() for fb in self.feedback])
 
     def add_feedback(self, user_chat_id=-1, text=None):
         if len(self.feedback) == 0:
@@ -158,18 +158,17 @@ class Db:
         return "Теперь Вы - представитель почётной проффессии - педагог " + self.timetable.t_n[n_type_id]
 
     def write_all(self):
-        # IO.FileIO.write_json("users.json", [u.__dict__() for u in self.users])
-        IO.FileIO.write_json("users.json", {key: self.users[key].__dict__() for key in list(self.users)})
+        IO.FileIO.write_json("data/users.json", {key: self.users[key].__dict__() for key in list(self.users)})
         self.write_feedback()
-        IO.FileIO.write_json("timetable.json", self.timetable)
+        IO.FileIO.write_json("data/timetable.json", self.timetable)
         return True
 
     def read_all(self):
         # self.users = [User().restore(origin) for origin in IO.FileIO.read_json("users.json")]
-        u_t = IO.FileIO.read_json("users.json")
+        u_t = IO.FileIO.read_json("data/users.json")
         self.users = {int(key): User().restore(u_t[key]) for key in list(u_t)}
-        self.timetable = Timetable.Timetable().restore(IO.FileIO.read_json("timetable.json"))
-        self.feedback = [Feedback().restore(origin) for origin in IO.FileIO.read_json("feedback.json")]
+        self.timetable = Timetable.Timetable().restore(IO.FileIO.read_json("data/timetable.json"))
+        self.feedback = [Feedback().restore(origin) for origin in IO.FileIO.read_json("data/feedback.json")]
         return self
 
     def update(self):

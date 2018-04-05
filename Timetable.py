@@ -1,4 +1,4 @@
-from Type import Type
+from Type import *
 import TClasses
 import common
 
@@ -268,3 +268,23 @@ class Timetable:
         elif len(self.changes.changes) != 0:
             text += "Есть изменения."
         return text
+
+    def get_timetable_pres(self, presentation, tt_type=Type.CLASS, ind=-1, day=7):
+        if presentation == Presentation.TODAY:
+            return self.get_timetable_today(ind, tt_type)
+        if presentation == Presentation.TOMORROW:
+            return self.get_timetable_today(ind, tt_type)
+        if presentation == Presentation.NEAR:
+            return self.get_timetable_today(ind, tt_type)
+        if presentation == Presentation.ALL_WEEK:
+            return self.get_timetable_today(ind, tt_type)
+        return self.get_timetable(ind, tt_type, day)
+
+    def check_has(self, tt_type, ind):
+        if tt_type == Type.CLASS:
+            return 0 < ind < len(self.c_n)
+        if tt_type == Type.TEACHER:
+            return 0 < ind < len(self.t_n)
+        if tt_type == Type.ROOM:
+            return 0 < ind < len(self.r_i)
+        return False

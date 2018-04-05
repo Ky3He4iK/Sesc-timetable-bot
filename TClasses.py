@@ -1,4 +1,5 @@
 import common
+from Type import *
 
 
 class Class:
@@ -174,6 +175,17 @@ class FreeRoomsAll:
     def get_free(self, timetable, day=7, les=-1):
         return self.form(timetable, day, les)
 
+    def get_free_pres(self, timetable, presentation, day=7):
+        if presentation == Presentation.ALL_WEEK:
+            return self.get_free(timetable)
+        if presentation == Presentation.NEAR:
+            return self.get_free_near(timetable)
+        if presentation == Presentation.TOMORROW:
+            return self.get_free_tomorrow(timetable)
+        if presentation == Presentation.TODAY:
+            return self.get_free_today(timetable)
+        return self.get_free(timetable, day)
+
 
 class Changes:
     def __init__(self, class_count=0):
@@ -216,6 +228,13 @@ class Changes:
             for class_ch_ind in range(len(self.changes)):
                 self.ch_ind[self.changes[class_ch_ind].class_ind] = class_ch_ind
         return self
+
+    def get_changes_pres(self, timetable, presentation, ind=-1):
+        if presentation == Presentation.ALL_CLASSES:
+            return self.get_changes(timetable)
+        if presentation == Presentation.CURRENT_CLASS:
+            return self.get_changes(timetable, ind)
+        return self.get_changes(timetable, ind)
 
     def get_changes(self, timetable, class_ind=None, inline=False):
         if self.change_day == -1:
