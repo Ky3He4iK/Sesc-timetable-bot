@@ -171,9 +171,9 @@ class Db:
         self.feedback = [Feedback().restore(origin) for origin in IO.FileIO.read_json("data/feedback.json")]
         return self
 
-    def update(self):
+    def update(self, fast=False):
         # return self.timetable is not None and self.timetable.update() and self.write_all()
-        return self.timetable is not None and update_timetable.t_update(self.timetable) and self.write_all()
+        return self.timetable is not None and update_timetable.t_update(self.timetable, fast=fast) and self.write_all()
 
     @staticmethod
     def find_sub(string, array):

@@ -120,23 +120,13 @@ class Timetable:
         :param ind:
         :return:
         """
-        '''def replace(arr, type_a):
-            if type_a == Type.CLASS:
-                return [self.c_n[i] for i in arr]
-            if type_a == Type.TEACHER:
-                return [self.t_n[i] for i in arr]
-            if type_a == Type.ROOM:
-                return [self.r_n[i] for i in arr]
-
-        def replace_scp(arr):
-            return ['█' * len(a) for a in arr]'''
         def group_to_str(tt_cell):
             if tt_cell.room_ind != self.trap:
                 class_s = (self.c_n[tt_cell.class_ind] + ' ' if tt_type != Type.CLASS else "")
                 group_s = ('(' + str(tt_cell.group_ind) + ') ' if tt_cell.group_ind != 0 else "")
+                sub = '|'.join(tt_cell.subject)
                 teacher = (' - ' + str(self.t_n[tt_cell.teacher_ind]) if tt_type != Type.TEACHER else "")
                 room = (' в ' + self.get_room(tt_cell.room_ind) if tt_type != Type.ROOM else "")
-                sub = '|'.join(tt_cell.subject)
                 return class_s + group_s + sub + teacher + room
             else:
                 return 'ACCESS DENIED'
@@ -155,7 +145,7 @@ class Timetable:
             answer += '\0--------------------\n'
         else:
             lessons.sort()
-            answer += '\n'.join(group_to_str(les) for les in lessons) + '\n'
+            answer += '\n   '.join(group_to_str(les) for les in lessons) + '\n'
             '''if tt_type != Type.CLASS:
                 cl, g_i, s_i, t_i, r_i = [], [], [], [], []
                 for group in lessons:
@@ -210,10 +200,13 @@ class Timetable:
         if common.c_day > 5:
             c_d, c_l = 0, 0
         elif common.c_les > 6:
-            c_d, c_l = common.c_day + 1, 0
+            c_d, c_l = (common.c_day + 1) % 6, 0
         else:
             c_d, c_l = common.c_day, common.c_les
-        return self.get_timetable_les(tt_type, c_d % 6, c_l, ind)
+        title = (self.c_n[ind] if tt_type == Type.CLASS else "") + \
+                (self.get_room_long(ind) if tt_type == Type.ROOM else "") + \
+                (self.t_n[ind] if tt_type == Type.TEACHER else "") + '. ' + self.d_n[c_d] + '\n'
+        return '```\n' + title + self.get_timetable_les(tt_type, c_d % 6, c_l, ind) + '\n```'
 
     def get_timetable(self, ind, tt_type, day=7):
         def get_timetable_title():
@@ -256,28 +249,29 @@ class Timetable:
 
         if ind == -1:
             return "Что-то пошло не так\n"
+        if tt_type == Type.ROOM and ind == self.trap:
+            return "`ACCESS DENIED`"
         title = get_timetable_title()
         tt = get_timetable_main(day)
         if tt == '':
             text = title + 'Нету расписания\n'
         else:
             text = title + tt
-        if type == Type.CLASS:
-            if self.changes.has_changes[ind]:
+        if tt_type == Type.CLASS and self.changes.has_changes[ind]:
                 text += 'Есть изменения\n' + self.changes.get_changes(self, ind, True)
         elif len(self.changes.changes) != 0:
             text += "Есть изменения."
-        return text
+        return '```\n' + text + '\n```'
 
     def get_timetable_pres(self, presentation, tt_type=Type.CLASS, ind=-1, day=7):
         if presentation == Presentation.TODAY:
             return self.get_timetable_today(ind, tt_type)
         if presentation == Presentation.TOMORROW:
-            return self.get_timetable_today(ind, tt_type)
+            return self.get_timetable_tomorrow(ind, tt_type)
         if presentation == Presentation.NEAR:
-            return self.get_timetable_today(ind, tt_type)
+            return self.get_timetable_near(ind, tt_type)
         if presentation == Presentation.ALL_WEEK:
-            return self.get_timetable_today(ind, tt_type)
+            return self.get_timetable(ind, tt_type)
         return self.get_timetable(ind, tt_type, day)
 
     def check_has(self, tt_type, ind):

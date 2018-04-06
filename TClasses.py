@@ -106,13 +106,13 @@ class FreeRoomsAll:
         self.all = [self.FreeRoomsDay() for _ in range(6)]  # array of FRD
 
     def set(self, timetable):
-        for day in range(len(self.all)):
-            for les in range(len(self.all[0].day)):
+        for day in range(6):
+            for les in range(7):
                 busy = [False for _ in range(len(timetable.rooms))]
                 for c in timetable.all[day].day[les].lesson:
                     for g in c.group:
                         busy[g.room_ind] = True
-                self.all[day].day[les].lesson = [timetable.rooms[k].ind for k in range(len(busy)) if busy[k]]
+                self.all[day].day[les].lesson = [timetable.rooms[k].ind for k in range(len(busy)) if not busy[k]]
 
     def __dict__(self):
         return {
@@ -121,7 +121,7 @@ class FreeRoomsAll:
 
     class FreeRoomsDay:
         def __init__(self):
-            self.day = [self.FreeRoomsLesson() for _ in range(6)]  # array of FRL
+            self.day = [self.FreeRoomsLesson() for _ in range(7)]  # array of FRL
 
         def __dict__(self):
             return {
@@ -152,10 +152,10 @@ class FreeRoomsAll:
 
     def form(self, timetable, day=7, les=-1):
         if day == 7:
-            return '\n'.join(self.form(timetable, d, -1) for d in range(6))
+            return '\n\n'.join(self.form(timetable, d, -1) for d in range(6))
         if les == -1:
             return timetable.d_n[day] + ':\n' + '\n'.join(self.form(timetable, day, l) for l in range(7))
-        return str(les + 1) + '. ' + ', '.join(self.all[day].day[les].lesson)
+        return '```\n' + str(les + 1) + '. ' + ', '.join(self.all[day].day[les].lesson) + '```'
 
     def get_free_today(self, timetable):
         return self.form(timetable, common.c_day % 6)
@@ -243,13 +243,13 @@ class Changes:
             ans = ''
             for change_cell in self.changes:
                 ans += timetable.c_n[change_cell.class_ind] + ':\n'
-                for ch_d in change_cell.change_data:
-                    ans += ch_d + '\n'
+                for i in range(len(change_cell.change_data)):
+                    ans += ('├ ' if i != len(change_cell.change_data) - 1 else '└ ') + change_cell.change_data[i] + '\n'
                 ans += '\n'
             ans = timetable.d_n[self.change_day] + ":\n" + ans
             if not inline:
                 ans = "Изменения на " + ans
-            return ans
+            return '```\n' + ans + '\n```'
         elif self.has_changes[class_ind]:
             for change_cell in self.changes:
                 if change_cell.class_ind == class_ind:
@@ -258,8 +258,8 @@ class Changes:
                         ans += ch_d + '\n'
                     if inline:
                         return timetable.d_n[self.change_day] + ":\n" + ans
-                    return "Изменения на " + timetable.d_n[self.change_day] + " для " + \
-                           timetable.c_n[class_ind] + ":\n" + ans
+                    return "```\nИзменения на " + timetable.d_n[self.change_day] + " для " + \
+                           timetable.c_n[class_ind] + ":\n" + ans + '\n```'
             common.pool_to_send.append(str(class_ind) + " - класс Шредингера в плане изменений")
             return "так_блэт.пнг\nЭтого не должно призойти!\nШредингер будет доволен"
         else:

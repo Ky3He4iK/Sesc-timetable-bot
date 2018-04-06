@@ -5,12 +5,12 @@ import config
 import logging
 
 
-def t_update(timetable, full=True):
+def t_update(timetable, full=True, fast=False):
     try:
         tt_t = Timetable(True)
 
         def get_token():
-            m_token = IO.InternetIO.get("http://lyceum.urfu.ru/n/?p=tmtbl")
+            m_token = IO.InternetIO.get("http://lyceum.urfu.ru/n/?p=tmtbl", fast=fast)
             if m_token is None:
                 raise Exception("No internet connection")
             m_token = m_token[m_token.find("<script>var tmToken=\"") + len("<script>var tmToken=\""):]
@@ -28,7 +28,7 @@ def t_update(timetable, full=True):
                 ans.sort()
                 return ans
 
-            page = IO.InternetIO.get("http://lyceum.urfu.ru/n/?p=tmtbl")
+            page = IO.InternetIO.get("http://lyceum.urfu.ru/n/?p=tmtbl", fast=fast)
             if page is None:
                 raise Exception("No internet connection")
             page = page[page.find("<div class=\"tmtbl\""): page.find("<script>var tmToken=")]
@@ -87,7 +87,7 @@ def t_update(timetable, full=True):
 
             url1 = config.base_url + token + "&tmrType=0&tmrClass=" + tt_t.classes[class_ind].ind
             url = url1 + "&tmrTeach=0&tmrRoom=0&tmrDay=" + str(day_ind + 1)
-            ans = IO.InternetIO.get(url)
+            ans = IO.InternetIO.get(url, fast=fast)
             if ans is None:
                 raise Exception("No internet connection")
             if ans == "Err\n":
@@ -143,7 +143,7 @@ def t_update(timetable, full=True):
                     set_teacher_day_sub(arr_sub, teach_ind, day_ind)
 
             url = config.base_url + token + "&tmrType=1&tmrClass=&tmrTeach=" + tt_t.teachers[teacher_ind].ind
-            ans = IO.InternetIO.get(url + "&tmrRoom=0&tmrDay=0")
+            ans = IO.InternetIO.get(url + "&tmrRoom=0&tmrDay=0", fast=fast)
             if ans is None:
                 raise Exception("No internet connection")
             if ans == "Err\n":
@@ -156,7 +156,7 @@ def t_update(timetable, full=True):
 
         def get_changes_raw():
             url = config.base_url + token + "&tmrType=1&tmrClass=&tmrTeach=" + tt_t.teachers[0].ind
-            ans = IO.InternetIO.get(url + "&tmrRoom=0&tmrDay=0")
+            ans = IO.InternetIO.get(url + "&tmrRoom=0&tmrDay=0", fast=fast)
             if ans is None:
                 raise Exception("No internet connection")
             if ans == "Err\n":

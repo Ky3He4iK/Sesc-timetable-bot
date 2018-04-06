@@ -61,7 +61,6 @@ class Context:
                 self.bot.send_message(message.chat.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
                                                        "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код обработки"
                                                        " ошибок")
-                common.logger.error(e)
                 self.send_to_father("An GREAT ERROR occupied")
                 self.write_error(e, message)
 
@@ -77,7 +76,7 @@ class Context:
                                          mes_id=call.message.message_id, db=self.db)
             except BaseException as e:
                 print(e, e.with_traceback(e.__traceback__))
-                common.logger.error(e)
+                self.write_error(e)
                 self.bot.send_message(call.from_user.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
                                                          "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код "
                                                          "обработки ошибок")
@@ -90,6 +89,7 @@ class Context:
     def write_error(self, err, mess=None):
         self.send_to_father("An exception occupied!")
         logging.error(err, exc_info=True)
+        common.logger.error(err)
         print(str(err), err.args, err.__traceback__)
         print(err.with_traceback(err.__traceback__))
         f = open("data/Error-bot-" + datetime.datetime.today().strftime("%y%m%d-%Hh") + '.log', 'a')
@@ -100,7 +100,7 @@ class Context:
         f.write(datetime.datetime.today().strftime("%M:%S-%f") + str(err) + ' ' + str(err.args) + '\n' + text + '\n\n')
         f.close()
 
-    def qsend_message(self, chat_id, text, inline_keyboard=None, silent=False):
+    def qsend_message(self, chat_id, text, inline_keyboard=None, silent=False, markdown=False):
         try:
             text = str(text)
             if len(text) == 0:
@@ -113,12 +113,13 @@ class Context:
                     end_p = text[:4094].rfind(' ')
                     if end_p < 3600:
                         end_p = 4094
-                self.bot.send_message(chat_id, text[:end_p], disable_notification=silent)
+                self.bot.send_message(chat_id, text[:end_p], disable_notification=silent,
+                                      parse_mode=("Markdown" if markdown else None))
                 text = text[end_p:]
                 sleep(1 / 30)
             if len(text) != 0:
-                self.bot.send_message(chat_id, text, reply_markup=inline_keyboard, disable_notification=silent)
-                sleep(1 / 30)
+                self.bot.send_message(chat_id, text, reply_markup=inline_keyboard, disable_notification=silent,
+                                      parse_mode=("Markdown" if markdown else None))
             return True
         except requests.exceptions.ConnectionError:
             pass
@@ -126,9 +127,10 @@ class Context:
             self.write_error(e)
             return False
 
-    def edit_message(self, chat_id, text, message_id, inline_keyboard=None):
+    def edit_message(self, chat_id, text, message_id, inline_keyboard=None, markdown=False):
         try:
             text = str(text)
+            was = False
             if len(text) == 0:
                 return False
             if inline_keyboard is None:
@@ -139,22 +141,35 @@ class Context:
                     end_p = text[:4094].rfind(' ')
                     if end_p < 3600:
                         end_p = 4094
-                if end_p == len(text) - 1:
+                if end_p >= len(text) - 1:
                     c_k = inline_keyboard
                 else:
                     c_k = None
                 try:
-                    self.bot.send_message(chat_id, text[:end_p], reply_markup=c_k)
+                    if not was:
+                        self.bot.edit_message_text(text[:end_p], chat_id, message_id, reply_markup=inline_keyboard,
+                                                   parse_mode=("Markdown" if markdown else None))
+                        was = True
+                    else:
+                        self.bot.send_message(chat_id, text[:end_p], reply_markup=c_k,
+                                              parse_mode=("Markdown" if markdown else None))
                 except telebot.apihelper.ApiException:
                     pass
                 text = text[end_p:]
                 sleep(1 / 30)
             if len(text) != 0:
                 try:
-                    self.bot.edit_message_text(text, chat_id, message_id, reply_markup=inline_keyboard)
-                except telebot.apihelper.ApiException:
+                    if was:
+                        self.bot.send_message(chat_id=chat_id, text=text, reply_markup=inline_keyboard,
+                                              parse_mode=("Markdown" if markdown else None))
+                    else:
+                        self.bot.edit_message_text(text=text, chat_id=chat_id, message_id=message_id,
+                                                   reply_markup=inline_keyboard,
+                                                   parse_mode=("Markdown" if markdown else None))
+                except telebot.apihelper.ApiException as err:
+                    print(str(err), err.args, err.__traceback__)
+                    print(err.with_traceback(err.__traceback__))
                     pass
-                sleep(1 / 30)
             return True
         except BaseException as e:
             self.write_error(e)
@@ -269,8 +284,7 @@ class Context:
                     counter = 0
                 if self.db.timetable.changes != c_o and b:
                     b = b or changes_notify()
-                if not b:
-                    print("update failed")
+                print("updated " + str(counter == 1) if b else "update failed")
                 sleep(60 * 30)
             except BaseException as e:
                 self.write_error(e)

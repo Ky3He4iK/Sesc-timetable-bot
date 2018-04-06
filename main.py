@@ -44,7 +44,9 @@ def thread_start():
         except KeyboardInterrupt:
             exit(0)
         except requests.ConnectionError:
-            print("exception error")
+            print("connection error")
+        except requests.ReadTimeout:
+            print("read timeout error")
         except BaseException as e:
             context.write_error(e)
             sleep(3)
@@ -67,13 +69,14 @@ if __name__ == '__main__':
         try:
             if len(common.pool_to_send) != 0:
                 context.qsend_message(common.pool_to_send[0].to_user_id, common.pool_to_send[0].text,
-                                      silent=common.pool_to_send[0].silent,
+                                      silent=common.pool_to_send[0].silent, markdown=common.pool_to_send[0].markdown,
                                       inline_keyboard=common.pool_to_send[0].inline_keyboard)
                 common.pool_to_send = common.pool_to_send[1:]
                 sleep(1 / 30)
             if len(common.pool_to_edit) != 0:
                 context.edit_message(common.pool_to_edit[0].chat_id, common.pool_to_edit[0].text,
-                                     common.pool_to_edit[0].message_id, common.pool_to_edit[0].inline_keyboard)
+                                     common.pool_to_edit[0].message_id, common.pool_to_edit[0].inline_keyboard,
+                                     markdown=common.pool_to_edit[0].markdown)
                 common.pool_to_edit = common.pool_to_edit[1:]
                 sleep(1 / 30)
             sleep(1 / 30)
