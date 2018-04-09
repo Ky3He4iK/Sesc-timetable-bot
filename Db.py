@@ -117,7 +117,6 @@ class Db:
             self.users = {0: User() for _ in range(0)}
             self.feedback = [Feedback() for _ in range(0)]
             self.timetable = Timetable.Timetable()
-            # self.timetable.update()
             update_timetable.t_update(self.timetable)
             self.write_all()
             print("Updated!")
