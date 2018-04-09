@@ -141,8 +141,7 @@ class Db:
             raise ValueError("Too big index", feedback_id)
 
     def add_user(self, message):
-        self.users[message.from_user.id] = User(len(self.users), message.from_user.username, message.from_user.id,
-                                                first_name=message.from_user.first_name)
+        self.users[message.from_user.id] = User(internal_id=len(self.users), user_id=message.from_user.id)
 
     def set_user(self, user_chat_id, n_type, n_type_id):
         if n_type_id == -1:

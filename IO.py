@@ -8,10 +8,7 @@ import common
 class FileIO:
     @staticmethod
     def write(file_name, text, rewrite=True):
-        if rewrite:
-            file = open(file_name, 'w', encoding='UTF-8')
-        else:
-            file = open(file_name, 'a')
+        file = open(file_name, 'w' if rewrite else 'a', encoding='UTF-8')
         file.write(text)
         file.close()
 
@@ -33,17 +30,13 @@ class FileIO:
 
     @staticmethod
     def read_json(file_name):
-        file = open(file_name, 'r')
-        text = file.read()
-        file.close()
-        return json.loads(text)
+        return json.loads(FileIO.read(file_name))
 
 
 class InternetIO:
     @staticmethod
     def get(url, fast=False):
         try:
-            # sleep(0.01)
             if common.DEBUG or fast:
                 sleep(0.01)
             else:
@@ -51,4 +44,4 @@ class InternetIO:
             return requests.get(url).text
         except BaseException as e:
             print(e, e.args)
-            return None
+        return None

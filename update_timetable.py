@@ -19,27 +19,26 @@ def t_update(timetable, full=True, fast=False):
         token = get_token()
 
         def set_base():
-            def extract_by_str(string, tt_class):
+            def extract_by_str(string):
                 ans = []
                 a = string.split("</option>")[:-1]
                 for ss in a:
                     d_i = ss[ss.find("value='") + len("value='"):]
-                    ans.append(tt_class(d_i[: d_i.find("'")], ss[ss.rfind(">") + 1:]))
+                    ans.append(TClass(d_i[: d_i.find("'")], ss[ss.rfind(">") + 1:]))
                 ans.sort()
                 return ans
 
             page = IO.InternetIO.get("http://lyceum.urfu.ru/n/?p=tmtbl", fast=fast)
             if page is None:
                 raise Exception("No internet connection")
-            page = page[page.find("<div class=\"tmtbl\""): page.find("<script>var tmToken=")]
-            arr = page.split("tmtbl")
-            tt_t.classes = extract_by_str(arr[3], TClasses.Class)
-            tt_t.teachers = extract_by_str(arr[4], TClasses.Teacher)
-            tt_t.rooms = extract_by_str(arr[5], TClasses.Room)
-            tt_t.rooms.append(TClasses.Room('F', "Каф. ин. яз"))
-            tt_t.rooms.append(TClasses.Room('Hz', 'ACCESS DENIED'))
+            arr = page[page.find("<div class=\"tmtbl\""): page.find("<script>var tmToken=")].split("tmtbl")
+
+            tt_t.classes = extract_by_str(arr[3])
+            tt_t.teachers = extract_by_str(arr[4])
+            tt_t.rooms = extract_by_str(arr[5])
+            tt_t.rooms += [TClass('F', "Каф. ин. яз"), TClass('Hz', 'ACCESS DENIED')]
             tt_t.rooms.sort()
-            tt_t.days = extract_by_str(arr[6], TClasses.Day)
+            tt_t.days = extract_by_str(arr[6])
 
             tt_t.set_tt_base(len(tt_t.classes))
 
@@ -60,22 +59,18 @@ def t_update(timetable, full=True, fast=False):
                         subject = lesson_data
                     else:
                         arr = lesson_data.split(" ")
-                        if len(arr) > 2:
-                            print(arr)
                         room = Timetable.bin_search_crutch(tt_t.rooms, arr[1], False)
                         if room == -1:
                             room = defaults[2]
                         subject = arr[0]
                     return TClasses.TTDay.TTLesson.TTLClass.TTCell(cl_ind, room, defaults[3], subject, group)
 
-                # les_data = ' '
                 if les_data.rfind("<td>") == -1:
                     return
                 les_num = int(les_data[len("<td>"):len("<td>") + 1]) - 1
                 if les_data.find("width") == -1:
-                    begin = les_data.index("<td colspan=2>") + len("<td colspan=2>")
-                    les_d = les_data[begin: les_data.index("</td></tr>")]
-                    temp = set_class_lesson_sub(les_d, 0, class_ind_int)
+                    temp = set_class_lesson_sub(les_data[les_data.index("<td colspan=2>") + len("<td colspan=2>"):
+                                                         les_data.index("</td></tr>")], 0, class_ind_int)
                     tt_t.all[d_ind].day[les_num].lesson[class_ind_int].group.append(temp)
                 else:
                     aaa = les_data.split("<td width=47%>")[1:]
@@ -85,15 +80,13 @@ def t_update(timetable, full=True, fast=False):
                             temp = set_class_lesson_sub(l_data, i + 1, class_ind_int)
                             tt_t.all[d_ind].day[les_num].lesson[class_ind_int].group.append(temp)
 
-            url1 = config.base_url + token + "&tmrType=0&tmrClass=" + tt_t.classes[class_ind].ind
-            url = url1 + "&tmrTeach=0&tmrRoom=0&tmrDay=" + str(day_ind + 1)
-            ans = IO.InternetIO.get(url, fast=fast)
+            ans = IO.InternetIO.get(config.base_url + token + "&tmrType=0&tmrClass=" + tt_t.classes[class_ind].ind +
+                                    "&tmrTeach=0&tmrRoom=0&tmrDay=" + str(day_ind + 1), fast=fast)
             if ans is None:
                 raise Exception("No internet connection")
             if ans == "Err\n":
                 raise Exception("update failed", class_ind, day_ind, ans)
-            ans_sub = ans[ans.index("<tr>") + len("<tr>"):].split("<tr>")
-            for les in ans_sub:
+            for les in ans[ans.index("<tr>") + len("<tr>"):].split("<tr>"):
                 set_class_lesson(class_ind, day_ind, les)
 
         def set_teacher(teacher_ind):
@@ -102,33 +95,26 @@ def t_update(timetable, full=True, fast=False):
                     c = l_data[l_data.rfind("</td>") - 1]
                     if c == ';':
                         return
-                    elif c == '1':
-                        group = 1
-                    elif c == '2':
-                        group = 2
-                    else:
-                        group = 0
+                    group = int(c) if c.isdecimal(c) else 0
                     l_data = l_data[:l_data.rfind("<td>") - len("</td>")]
                     if '<td>' not in l_data:
                         return
                     les_num = int(l_data[len("<td>"): len("<td>") + 1]) - 1
-                    l_data = l_data[l_data.find("</td>") + len("</td><td>"):]
-                    m_arr = l_data.split("</td><td>")
+                    m_arr = l_data[l_data.find("</td>") + len("</td><td>"):].split("</td><td>")
                     subject = m_arr[0]
+
                     for cl_ in range(len(tt_t.classes)):
                         if m_arr[1] == tt_t.classes[cl_].name:
                             class_ind = cl_
                             break
                     else:
                         class_ind = -1  # TODO: add binary search
-                    if group == 2 and len(tt_t.all[d_ind].day[les_num].lesson[class_ind].group) != 1:
-                        group_i = 1
-                    else:
-                        group_i = 0
-                    if d_ind < 0 or les_num < 0 or group_i < 0 or d_ind >= len(tt_t.all) or les_num >= len(
-                            tt_t.all[d_ind].day) or class_ind >= len(
-                            tt_t.all[d_ind].day[les_num].lesson) or group_i >= len(
-                            tt_t.all[d_ind].day[les_num].lesson[class_ind].group):
+
+                    group_i = 1 if group == 2 and len(tt_t.all[d_ind].day[les_num].lesson[class_ind].group) != 1 else 0
+                    if d_ind < 0 or les_num < 0 or group_i < 0 or d_ind >= len(tt_t.all) or \
+                            les_num >= len(tt_t.all[d_ind].day) or \
+                            class_ind >= len(tt_t.all[d_ind].day[les_num].lesson) or \
+                            group_i >= len(tt_t.all[d_ind].day[les_num].lesson[class_ind].group):
                         # От создателя if'а с 64 условиями в 1 строке
                         print("Хьюстон, у нас проблемы", d_ind, les_num, group_i, t_ind)
                     t_cell = tt_t.all[d_ind].day[les_num].lesson[class_ind].group[group_i]
@@ -142,8 +128,8 @@ def t_update(timetable, full=True, fast=False):
                 for arr_sub in arr[1:]:
                     set_teacher_day_sub(arr_sub, teach_ind, day_ind)
 
-            url = config.base_url + token + "&tmrType=1&tmrClass=&tmrTeach=" + tt_t.teachers[teacher_ind].ind
-            ans = IO.InternetIO.get(url + "&tmrRoom=0&tmrDay=0", fast=fast)
+            ans = IO.InternetIO.get(config.base_url + token + "&tmrType=1&tmrClass=&tmrTeach=" +
+                                    tt_t.teachers[teacher_ind].ind + "&tmrRoom=0&tmrDay=0", fast=fast)
             if ans is None:
                 raise Exception("No internet connection")
             if ans == "Err\n":
@@ -155,8 +141,8 @@ def t_update(timetable, full=True, fast=False):
                 set_teacher_day(sub_s, teacher_ind)
 
         def get_changes_raw():
-            url = config.base_url + token + "&tmrType=1&tmrClass=&tmrTeach=" + tt_t.teachers[0].ind
-            ans = IO.InternetIO.get(url + "&tmrRoom=0&tmrDay=0", fast=fast)
+            ans = IO.InternetIO.get(config.base_url + token + "&tmrType=1&tmrClass=&tmrTeach=" + tt_t.teachers[0].ind +
+                                    "&tmrRoom=0&tmrDay=0", fast=fast)
             if ans is None:
                 raise Exception("No internet connection")
             if ans == "Err\n":
@@ -177,31 +163,20 @@ def t_update(timetable, full=True, fast=False):
                 if cl_ind == -1:
                     return
                 tt_t.changes.has_changes[cl_ind] = True
-                tmp = []
-                for sub_ch in lesson_ch.split("<p>"):
-                    if len(sub_ch) < 2:
-                        continue
-                    tmp.append(sub_ch[:sub_ch.find("</p>")])
+                tmp = [sub_ch[:sub_ch.find("</p>")] for sub_ch in lesson_ch.split("<p>") if len(sub_ch) >= 2]
                 tt_t.changes.changes.append(TClasses.Changes.ChangesCell(cl_ind, tmp))
 
             changes_raw = get_changes_raw()
             tt_t.changes = TClasses.Changes(len(tt_t.classes))
             temp = changes_raw[changes_raw.find("НА ") + len("НА "):]
             tt_t.changes.change_day = get_day_specialized(temp[:temp.find(' ') - 1])
-            ind = changes_raw.find("</h3>") + len("</h3>")
-            changes_raw = changes_raw[ind:].replace("&nbsp;&mdash;", "-")
-            arr = changes_raw.split("<h6>")
-            for les_ch in arr:
-                if len(les_ch) != 0:
-                    if "</h6>" in les_ch:
-                        class_ind = Timetable.bin_search_crutch(tt_t.classes, les_ch[:les_ch.index('</h6>')])
-                        set_changes_sub(les_ch[les_ch.find("<p>"):], class_ind)
-                    else:
-                        print("Error occuped while setting changes:", les_ch)
-
-        def gen_ch_ind():
-            for class_ch_ind in range(len(tt_t.changes.changes)):
-                tt_t.changes.ch_ind[tt_t.changes.changes[class_ch_ind].class_ind] = class_ch_ind
+            changes_raw = changes_raw[changes_raw.find("</h3>") + len("</h3>"):].replace("&nbsp;&mdash;", "-")
+            for les_ch in [s for s in changes_raw.split("<h6>") if len(s) != 0]:
+                if "</h6>" in les_ch:
+                    set_changes_sub(les_ch[les_ch.find("<p>"):],
+                                    Timetable.bin_search_crutch(tt_t.classes, les_ch[:les_ch.index('</h6>')]))
+                else:
+                    print("Error occupied while setting changes:", les_ch)
 
         if full:
             for cl in range(len(tt_t.classes)):
@@ -210,8 +185,9 @@ def t_update(timetable, full=True, fast=False):
             for t in range(len(tt_t.teachers)):
                 set_teacher(t)
             tt_t.free_rooms.set(tt_t)
+
         set_changes()
-        gen_ch_ind()
+
         timetable.changes = tt_t.changes
         if full:
             timetable.free_rooms = tt_t.free_rooms
@@ -224,6 +200,14 @@ def t_update(timetable, full=True, fast=False):
             timetable.trap = timetable.r_i.index('Hz')
         return True
     except BaseException as e:
-        print(str(e), e.args, e.__traceback__)
         logging.error(e, exc_info=True)
-        return False
+    return False
+
+
+class TClass:
+    def __init__(self, ind, name):
+        self.ind = ind
+        self.name = name
+
+    def __lt__(self, other):
+        return self.name < other.name

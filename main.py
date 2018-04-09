@@ -1,5 +1,4 @@
 import sys
-import datetime
 import threading
 from time import sleep
 # import telebot
@@ -52,19 +51,7 @@ def thread_start():
             sleep(3)
 
 
-def send_to_father(text):
-    return context.send_to_father(text)
-
-
-if __name__ == '__main__':
-    common.DEBUG = len(sys.argv) != 1
-    if common.DEBUG:
-        requests.get("https://telegram.org")
-    context = Context()
-    bot_main = threading.Thread(target=thread_start)
-    bot_main.daemon = True
-    bot_main.start()
-    # context.send_message(config.father_chat, "test", gen_keyboard())
+def thread_send():
     while True:
         try:
             if len(common.pool_to_send) != 0:
@@ -82,14 +69,25 @@ if __name__ == '__main__':
             sleep(1 / 30)
         except KeyboardInterrupt:
             exit(0)
-        except BaseException as err:
-            common.logger.error(err, exc_info=True)
-            print(str(err), err.args, err.__traceback__)
-            print(err.with_traceback(err.__traceback__))
-            f = open("data/Error-bot-" + datetime.datetime.today().strftime("%y%m%d-%Hh") + '.log', 'a')
-            f.write(
-                datetime.datetime.today().strftime("%M:%S-%f") + str(err) + ' ' + str(err.args) + '\n\n')
-            f.close()
+        except BaseException as e:
+            common.logger.error(e, exc_info=True)
+
+
+def send_to_father(text):
+    return context.send_to_father(text)
+
+
+if __name__ == '__main__':
+    common.DEBUG = len(sys.argv) != 1
+    if common.DEBUG:
+        requests.get("https://telegram.org")
+    context = Context()
+    bot_main = threading.Thread(target=thread_start)
+    bot_main.daemon = True
+    bot_main.start()
+    # context.send_message(config.father_chat, "test", gen_keyboard())
+    while True:
+        sleep(100)
 
 
 mes = {'content_type': 'text', 'message_id': 97, 'from_user':  # usual mes

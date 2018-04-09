@@ -49,11 +49,11 @@ class Context:
         def _reply_ping(message):
             common.logger.info(message)
             self.bot.send_message(message.chat.id, "Pong!")
-            self.on_user_message(message.from_user.id)
+            self.on_user_message(message.from_user.id, message)
 
         @self.bot.message_handler(content_types=['text'], func=lambda message: message.text[0] == '/')
         def _reply(message):
-            self.on_user_message(message.from_user.id)
+            self.on_user_message(message.from_user.id, message)
             common.logger.info(message)
             try:
                 Message_handler.message(message, self.db)
@@ -66,11 +66,12 @@ class Context:
 
         @self.bot.message_handler(func=lambda message: True)
         def _reply_default(message):
-            self.on_user_message(message.from_user.id)
+            self.on_user_message(message.from_user.id, message)
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def test_callback(call):
             common.logger.info(call)
+            self.on_user_message(call.from_user.id, call)
             try:
                 Message_handler.callback(user_id=call.from_user.id, data=self.extract_data_from_text(call.data),
                                          mes_id=call.message.message_id, db=self.db)
@@ -82,9 +83,11 @@ class Context:
                                                          "обработки ошибок")
                 self.send_to_father("An GREAT ERROR occupied")
 
-    def on_user_message(self, user_chat_id):
+    def on_user_message(self, user_chat_id, mess):
         if user_chat_id in self.db.users:
             self.db.users[user_chat_id].last_access = datetime.datetime.today().timestamp()
+            self.db.users[user_chat_id].username = mess.chat.username
+            self.db.users[user_chat_id].first_name = mess.chat.first_name
 
     def write_error(self, err, mess=None):
         self.send_to_father("An exception occupied!")
@@ -101,6 +104,9 @@ class Context:
         f.close()
 
     def qsend_message(self, chat_id, text, inline_keyboard=None, silent=False, markdown=False):
+        if chat_id is None:
+            print(text + '\nmarkdown: ', markdown, '\n', inline_keyboard, sep='')
+            return
         try:
             text = str(text)
             if len(text) == 0:
@@ -127,7 +133,10 @@ class Context:
             self.write_error(e)
             return False
 
-    def edit_message(self, chat_id, text, message_id, inline_keyboard=None, markdown=False):
+    def edit_message(self, chat_id, text, message_id, inline_keyboard=None, markdown=False, offline=False):
+        if offline:
+            print(text + '\nmarkdown: ', markdown, '\n', inline_keyboard, sep='')
+            return
         try:
             text = str(text)
             was = False

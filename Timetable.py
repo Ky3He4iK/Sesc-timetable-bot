@@ -20,35 +20,30 @@ class Timetable:
             self.d_n = []
             self.r_n = []
             self.r_i = []
-            self.trap = -1  # it's a trap!
+            self.trap = -1  # it's a trap!.gif
 
     def set_tt_base(self, class_count):
         self.all = [TClasses.TTDay(class_count) for _ in range(6)]
 
     def __dict__(self):
-        return {'all': [d.__dict__() for d in self.all],
-                'changes': self.changes.__dict__(),
-                'changes_raw': self.changes_raw,
-                'free_rooms': self.free_rooms.__dict__(),
-                't_n': self.t_n,
-                'c_n': self.c_n,
-                'd_n': self.d_n,
-                'r_n': self.r_n,
-                'r_i': self.r_i,
-                'trap': self.trap
-                }
+        return {
+            'all': [d.__dict__() for d in self.all],
+            'changes': self.changes.__dict__(),
+            'free_rooms': self.free_rooms.__dict__(),
+            't_n': self.t_n,
+            'c_n': self.c_n,
+            'd_n': self.d_n,
+            'r_n': self.r_n,
+            'r_i': self.r_i,
+            'trap': self.trap
+        }
 
     @staticmethod
     def bin_search_crutch(arr, destination, is_name=True, start=0, end=-1):  # Знаю, костыль, но всё же
-        if end == -1:
-            end = len(arr)
+        end = len(arr) if end == -1 else end
         while end - start > 0:
             center = (end + start) // 2
-            t_e = arr[center]
-            if is_name:
-                t_e = t_e.name
-            else:
-                t_e = t_e.ind
+            t_e = arr[center].name if is_name else arr[center].ind
             if t_e < destination:
                 start = center + 1
             elif t_e > destination:
@@ -56,15 +51,12 @@ class Timetable:
             else:
                 return center
         for i in range(len(arr)):
-            if is_name:
-                if arr[i].name == destination:
-                    return i
-            elif arr[i].ind == destination:
-                    return i
+            if (is_name and arr[i].name == destination) or arr[i].ind == destination:
+                return i
         return -1
 
     @staticmethod
-    def bin_search_crutch_second(arr, destination, start=0, end=-1):  # Знаю, костыль, но всё же
+    def bin_search_crutch_second(arr, destination, start=0, end=-1):  # Знаю, ещё больший костыль, но всё же
         if end == -1:
             end = len(arr)
         while end - start > 0:
@@ -84,7 +76,6 @@ class Timetable:
     def restore(self, original):
         self.all = [TClasses.TTDay().restore(origin) for origin in original['all']]
         self.changes = TClasses.Changes().restore(original['changes'])
-        self.changes_raw = original['changes_raw']
         self.free_rooms = TClasses.FreeRoomsAll().restore(original['free_rooms'])
         self.t_n = original['t_n']
         self.c_n = original['c_n']
@@ -210,24 +201,16 @@ class Timetable:
 
     def get_timetable(self, ind, tt_type, day=7):
         def get_timetable_title():
-            # type 0 - class, 1 - room, 2 - teacher; day: 7 if for all week
             ans = "Расписание для "
             if tt_type == Type.CLASS:
                 ans += self.c_n[ind]
             elif tt_type == Type.ROOM:
-                if ind == self.trap:
-                    ans += '███'
-                else:
-                    ans += self.get_room_long(ind)
+                ans += '███' if ind == self.trap else self.get_room_long(ind)
             elif tt_type == Type.TEACHER:
                 ans += self.t_n[ind]
             else:
                 ans += "чего-то"
-            ans += " на "
-            if day == 7:
-                ans += "всю неделю"
-            else:
-                ans += self.d_n[day]
+            ans += " на " + ("всю неделю" if day == 7 else self.d_n[day])
             return ans + '\n\n'
 
         def get_timetable_main(day_ind):
@@ -251,12 +234,8 @@ class Timetable:
             return "Что-то пошло не так\n"
         if tt_type == Type.ROOM and ind == self.trap:
             return "`ACCESS DENIED`"
-        title = get_timetable_title()
         tt = get_timetable_main(day)
-        if tt == '':
-            text = title + 'Нету расписания\n'
-        else:
-            text = title + tt
+        text = get_timetable_title() + ('Нету расписания\n' if tt == '' else tt)
         if tt_type == Type.CLASS and self.changes.has_changes[ind]:
                 text += 'Есть изменения\n' + self.changes.get_changes(self, ind, True)
         elif len(self.changes.changes) != 0:
