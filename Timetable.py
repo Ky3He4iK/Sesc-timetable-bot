@@ -111,6 +111,7 @@ class Timetable:
         :param ind:
         :return:
         """
+
         def group_to_str(tt_cell):
             if tt_cell.room_ind != self.trap:
                 class_s = (self.c_n[tt_cell.class_ind] + ' ' if tt_type != Type.CLASS else "")
@@ -237,7 +238,7 @@ class Timetable:
         tt = get_timetable_main(day)
         text = get_timetable_title() + ('Нету расписания\n' if tt == '' else tt)
         if tt_type == Type.CLASS and self.changes.has_changes[ind]:
-                text += '\nЕсть изменения\n' + self.changes.get_changes(self, ind, True)
+            text += '\nЕсть изменения\n' + self.changes.get_changes(self, ind, True)
         elif len(self.changes.changes) != 0:
             text += "Есть изменения."
         return text
