@@ -115,6 +115,9 @@ def callback(user_id, data, db, mes_id=None):
 
     elif data[0] == 6:
         if data[1] == 0 or data[1] == 1:
+            if data[4] != -1 and data[5] != -1:
+                db.users[user_id].settings.type_name = data[4]
+                db.users[user_id].settings.type_id = data[5]
             if data[1] == 1:
                 db.users[user_id].settings.notify = not \
                     db.users[user_id].settings.notify
@@ -245,23 +248,38 @@ def message(msg, db):
     elif msg.text.startswith("/sudo") and msg.from_user.id == config.father_chat:
         if msg.text == '/sudowrite':
             db.write_all()
-            common.pool_to_send.append(common.Message(text="OK", to_user_id=msg.from_user.id))
-        elif msg.text == '/sudoupdate':
+            common.pool_to_send.append(common.Message(text="OK", to_user_id=msg.from_user.id, inline_keyboard=-1))
+        elif msg.text.startswith('/sudoupdate'):
             db.update(True)
-            common.pool_to_send.append(common.Message(text="Ok", to_user_id=msg.from_user.id))
-        elif msg.text == '/sudoget':
+            common.pool_to_send.append(common.Message(text="Ok", to_user_id=msg.from_user.id, inline_keyboard=-1))
+        elif msg.text.startswith('/sudoget'):
             text = '\n\n'.join([str(fb.self_num) + ". " + str(fb.user_chat_id) + " (@" +
                                 str(db.users[fb.user_chat_id].username) + ")\n" + fb.text
                                 for fb in db.feedback if fb.condition == fb.FBType.UNREAD])
-            common.pool_to_send.append(common.Message(text=text, to_user_id=msg.from_user.id))
-        elif msg.text == '/sudoans':
+            common.pool_to_send.append(common.Message(text="feedback: " + text, to_user_id=msg.from_user.id,
+                                                      inline_keyboard=-1))
+        elif msg.text.startswith('/sudoans'):
             fb = db.feedback[int(msg.text.split()[1])]
             text = ' '.join(msg.text.split()[2:])
             fb.condition = fb.FBType.SOLVED
             db.feedback[int(msg.text.split()[1])] = fb
-            common.pool_to_send.append(common.Message(text=text, to_user_id=fb.user_chat_id))
-            common.pool_to_send.append(common.Message(text="Ok", to_user_id=msg.from_user.id))
-
+            common.pool_to_send.append(common.Message(text=text, to_user_id=fb.user_chat_id, inline_keyboard=-1))
+            common.pool_to_send.append(common.Message(text="Ok", to_user_id=msg.from_user.id, inline_keyboard=-1))
+        elif msg.text.startswith('/sudosay'):
+            data = msg.text.split()
+            ind = int(data[1])
+            text = ' '.join(data[2:])
+            common.send_message(text=text, chat_id=ind, markdown=True, inline_keyboard=-1)
+        elif msg.text.startswith('/sudosend'):
+            text = ' '.join(msg.text[1:].split())
+            for ind in db.users:
+                common.send_message(text=text, chat_id=ind, markdown=True, inline_keyboard=-1)
+        elif msg.text.startswith('/sudostop'):
+            common.work = False
+        else:
+            text = "/sudoupdate [any]\n/sudowrite\n/sudoget\n/sudoans <id> <text> - ans to feedback\n" \
+                   "/sudosay <id> <text> - say by id\n/sudosend <text> - send to all\n/sudostop"
+            common.send_message(text=text, chat_id=msg.from_user.id, markdown=True, inline_keyboard=-1)
     elif msg.text[0] == '/':
         if (msg.text.startswith('/c_') or msg.text.startswith('/t_') or msg.text.startswith('/r_')) and \
                 msg.text[3:].isdecimal():

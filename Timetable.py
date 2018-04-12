@@ -122,7 +122,7 @@ class Timetable:
             else:
                 return 'ACCESS DENIED'
 
-        answer = str(lesson + 1) + ': '
+        answer = '*' + str(lesson + 1) + '*:` '
         lessons = [TClasses.TTDay.TTLesson.TTLClass.TTCell() for _ in range(0)]
         if tt_type == Type.CLASS:
             lessons = self.all[day_ind].day[lesson].lesson[ind].group
@@ -136,7 +136,7 @@ class Timetable:
             answer += '\0--------------------\n'
         else:
             lessons.sort()
-            answer += '\n   '.join(group_to_str(les) for les in lessons) + '\n'
+            answer += '\n  '.join(group_to_str(les) for les in lessons) + '\n'
             '''if tt_type != Type.CLASS:
                 cl, g_i, s_i, t_i, r_i = [], [], [], [], []
                 for group in lessons:
@@ -179,7 +179,7 @@ class Timetable:
                         answer += self.get_room(group.room_ind) + '\n'
                     else:
                         answer += '███' + '\n'''
-        return answer
+        return answer + '`'
 
     def get_timetable_today(self, ind, tt_type):
         return self.get_timetable(ind, tt_type, common.c_day % 6)
@@ -216,7 +216,7 @@ class Timetable:
         def get_timetable_main(day_ind):
             if day_ind == 7:
                 return '\n'.join(get_timetable_main(d) for d in range(6))
-            ans = self.d_n[day_ind] + '\n'
+            ans = '*' + self.d_n[day_ind] + '*'
             h_l = False
             tt_a = []
             last_les = -1
@@ -227,7 +227,7 @@ class Timetable:
                     last_les = les
                 tt_a.append(tt_s)
             if h_l:
-                return ans + ''.join(tt_a[:last_les + 1]) + '\n'
+                return ans + '\n' + ''.join(tt_a[:last_les + 1])
             return ''
 
         if ind == -1:
@@ -237,10 +237,10 @@ class Timetable:
         tt = get_timetable_main(day)
         text = get_timetable_title() + ('Нету расписания\n' if tt == '' else tt)
         if tt_type == Type.CLASS and self.changes.has_changes[ind]:
-                text += 'Есть изменения\n' + self.changes.get_changes(self, ind, True)
+                text += '\nЕсть изменения\n' + self.changes.get_changes(self, ind, True)
         elif len(self.changes.changes) != 0:
             text += "Есть изменения."
-        return '```\n' + text + '\n```'
+        return text
 
     def get_timetable_pres(self, presentation, tt_type=Type.CLASS, ind=-1, day=7):
         if presentation == Presentation.TODAY:

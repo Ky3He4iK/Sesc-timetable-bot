@@ -2,6 +2,7 @@ import IO
 import Timetable
 import update_timetable
 from Type import *
+import common
 
 
 class User:
@@ -128,9 +129,10 @@ class Db:
         if len(self.feedback) == 0:
             f_n = 0
         else:
-            f_n = self.feedback[-1].self_num
+            f_n = self.feedback[-1].self_num + 1
         self.feedback.append(Feedback(user_chat_id, text, f_n))
         self.write_feedback()
+        common.send_message(text="FEEDBACK", inline_keyboard=-1)
 
     def remove_feedback(self, feedback_id):
         if 0 <= feedback_id < len(self.feedback):

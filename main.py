@@ -172,9 +172,10 @@ if __name__ == '__main__':
     sending = threading.Thread(target=thread_send)
     sending.daemon = True
     sending.start()
+    common.work = True
     # context.send_message(config.father_chat, "test", gen_keyboard())
-    while True:
-        sleep(100)
+    while common.work:
+        sleep(3)
 
 
 mes = {'content_type': 'text', 'message_id': 97, 'from_user':  # usual mes
@@ -236,4 +237,4 @@ mes2 = {'content_type': 'text', 'message_id': 104, 'from_user':  # reply mes
         'delete_chat_photo': None, 'group_chat_created': None, 'supergroup_chat_created': None,
         'channel_chat_created': None, 'migrate_to_chat_id': None, 'migrate_from_chat_id': None, 'pinned_message': None,
         'invoice': None, 'successful_payment': None}
-# foto, stickers and files ignored
+# photo, stickers and files ignored

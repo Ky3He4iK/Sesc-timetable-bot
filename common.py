@@ -54,6 +54,7 @@ brake_len = [10, 15, 15, 15, 20, 20]
 bells = gen()
 
 DEBUG = True
+work = False
 pool_to_send = [Message() for _ in range(0)]
 pool_to_edit = [Edit() for _ in range(0)]
 c_day = 0

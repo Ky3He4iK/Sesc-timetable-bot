@@ -19,12 +19,12 @@ def t_update(timetable, full=True, fast=False):
         token = get_token()
 
         def set_base():
-            def extract_by_str(string):
+            def extract_by_str(string, sort_by_ind=False):
                 ans = []
                 a = string.split("</option>")[:-1]
                 for ss in a:
                     d_i = ss[ss.find("value='") + len("value='"):]
-                    ans.append(TClass(d_i[: d_i.find("'")], ss[ss.rfind(">") + 1:]))
+                    ans.append(TClass(d_i[: d_i.find("'")], ss[ss.rfind(">") + 1:], sort_by_ind))
                 ans.sort()
                 return ans
 
@@ -38,7 +38,7 @@ def t_update(timetable, full=True, fast=False):
             tt_t.rooms = extract_by_str(arr[5])
             tt_t.rooms += [TClass('F', "Каф. ин. яз"), TClass('Hz', 'ACCESS DENIED')]
             tt_t.rooms.sort()
-            tt_t.days = extract_by_str(arr[6])
+            tt_t.days = extract_by_str(arr[6], True)
 
             tt_t.set_tt_base(len(tt_t.classes))
 
@@ -95,7 +95,7 @@ def t_update(timetable, full=True, fast=False):
                     c = l_data[l_data.rfind("</td>") - 1]
                     if c == ';':
                         return
-                    group = int(c) if c.isdecimal(c) else 0
+                    group = int(c) if c.isdecimal() else 0
                     l_data = l_data[:l_data.rfind("<td>") - len("</td>")]
                     if '<td>' not in l_data:
                         return
@@ -205,9 +205,10 @@ def t_update(timetable, full=True, fast=False):
 
 
 class TClass:
-    def __init__(self, ind, name):
+    def __init__(self, ind, name, sort_by_ind=False):
         self.ind = ind
         self.name = name
+        self.sort_by_id = sort_by_ind
 
     def __lt__(self, other):
-        return self.name < other.name
+        return self.ind < other.ind if self.sort_by_id else self.name < other.name

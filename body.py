@@ -14,13 +14,14 @@ import Message_handler
 class Context:
     def __init__(self):
         def set_default_keyboard():
-            return types.InlineKeyboardMarkup(row_width=3).add(
-                types.InlineKeyboardButton(text="Расписание", callback_data="3.0" + ".-1" * 6),
-                types.InlineKeyboardButton(text="Изменения", callback_data="4.0" + ".-1" * 6),
-                types.InlineKeyboardButton(text="Свободные", callback_data="5.0" + ".-1" * 6),
-                types.InlineKeyboardButton(text="Звонки", callback_data="2.1" + ".-1" * 6),
-                types.InlineKeyboardButton(text="Настройки", callback_data="6.0" + ".-1" * 6),
-                types.InlineKeyboardButton(text="Прочее", callback_data="7.0" + ".-1" * 6))
+            keyboard = types.InlineKeyboardMarkup(row_width=3)
+            keyboard.add(types.InlineKeyboardButton(text="Расписание", callback_data="3.0" + ".-1" * 6),
+                         types.InlineKeyboardButton(text="Изменения", callback_data="4.0" + ".-1" * 6),
+                         types.InlineKeyboardButton(text="Свободные", callback_data="5.0" + ".-1" * 6),
+                         types.InlineKeyboardButton(text="Звонки", callback_data="2.1" + ".-1" * 6),
+                         types.InlineKeyboardButton(text="Настройки", callback_data="6.0" + ".-1" * 6),
+                         types.InlineKeyboardButton(text="Прочее", callback_data="7.0" + ".-1" * 6))
+            return keyboard
 
         self.db = Db()
         self.current_day, self.current_lesson = 0, 0
@@ -45,10 +46,16 @@ class Context:
         @self.bot.message_handler()
         def _reply_default(message):
             self.on_user_message(message.from_user.id, message)
+            try:
+                Message_handler.message(message, self.db)
+            except BaseException as e:
+                self.bot.send_message(message.chat.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
+                                                       "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код")
+                self.write_error(e, message)
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def test_callback(call):
-            self.on_user_message(call.from_user.id, call)
+            common.logger.info(call)
             try:
                 Message_handler.callback(user_id=call.from_user.id, data=self.extract_data_from_text(call.data),
                                          mes_id=call.message.message_id, db=self.db)
@@ -93,6 +100,8 @@ class Context:
             text = str(message.text)
             if message.inline_keyboard is None:
                 message.inline_keyboard = config.default_keyboard
+            if message.inline_keyboard == -1:
+                message.inline_keyboard = None
             while len(text) > 4094:
                 end_p = self.rfind_space(text)
                 self._really_send_edit(chat_id=message.to_user_id, text=text[:end_p], silent=message.silent,
@@ -128,6 +137,8 @@ class Context:
             text, was = str(edit.text), False
             if edit.inline_keyboard is None:
                 edit.inline_keyboard = config.default_keyboard
+            if edit.inline_keyboard == -1:
+                edit.inline_keyboard = None
             while len(text) > 4094:
                 end_p = self.rfind_space(text)
                 c_k = edit.inline_keyboard if end_p >= len(text) - 1 else None
@@ -143,8 +154,13 @@ class Context:
             return True
         except requests.exceptions.ConnectionError:
             pass
+        except telebot.apihelper.ApiException as e:
+            print(e)
         except BaseException as e:
-            self.write_error(e)
+            if e.args != ("A request to the Telegram API was unsuccessful. The server returned HTTP 400 Bad Request. "
+                          "Response body:\n[b\\'{\"ok\":false,\"error_code\":400,\"description\":\""
+                          "Bad Request: message is not modified\"}\\']"):
+                self.write_error(e)
         return False
 
     @staticmethod

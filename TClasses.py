@@ -111,8 +111,8 @@ class FreeRoomsAll:
         if day == 7:
             return '\n\n'.join(self.form(timetable, d, -1) for d in range(6))
         if les == -1:
-            return timetable.d_n[day] + ':\n' + '\n'.join(self.form(timetable, day, l) for l in range(7))
-        return '```\n' + str(les + 1) + '. ' + ', '.join(self.all[day].day[les].lesson) + '```'
+            return '*' + timetable.d_n[day] + '*:\n' + '\n'.join(self.form(timetable, day, l) for l in range(7))
+        return '*' + str(les + 1) + '*. `' + ', '.join(self.all[day].day[les].lesson) + '`'
 
     def get_free_today(self, timetable):
         return self.form(timetable, common.c_day % 6)
@@ -192,14 +192,14 @@ class Changes:
         if class_ind is None:
             ans = ''
             for change_cell in self.changes:
-                ans += timetable.c_n[change_cell.class_ind] + ':\n'
+                ans += '*' + timetable.c_n[change_cell.class_ind] + '*:```\n'
                 for i in range(len(change_cell.change_data)):
                     ans += ('├ ' if i != len(change_cell.change_data) - 1 else '└ ') + change_cell.change_data[i] + '\n'
-                ans += '\n'
+                ans += '```'
             ans = timetable.d_n[self.change_day] + ":\n" + ans
             if not inline:
                 ans = "Изменения на " + ans
-            return '```\n' + ans + '\n```'
+            return ans
         elif self.has_changes[class_ind]:
             for change_cell in self.changes:
                 if change_cell.class_ind == class_ind:
@@ -208,8 +208,8 @@ class Changes:
                         ans += ch_d + '\n'
                     if inline:
                         return timetable.d_n[self.change_day] + ":\n" + ans
-                    return "```\nИзменения на " + timetable.d_n[self.change_day] + " для " + \
-                           timetable.c_n[class_ind] + ":\n" + ans + '\n```'
+                    return "Изменения на " + timetable.d_n[self.change_day] + " для " + \
+                           timetable.c_n[class_ind] + ":```\n" + ans + '\n```'
             common.pool_to_send.append(str(class_ind) + " - класс Шредингера в плане изменений")
             return "так_блэт.пнг\nЭтого не должно призойти! Что-то пошло не так!"
         else:
