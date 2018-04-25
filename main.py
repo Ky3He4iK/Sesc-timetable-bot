@@ -45,6 +45,7 @@ def thread_start():
         try:
             context.bot.polling(none_stop=False)
         except KeyboardInterrupt:
+            context.db.write_all()
             exit(0)
         except requests.ConnectionError:
             print("connection error")
@@ -52,6 +53,7 @@ def thread_start():
             print("read timeout error")
         except BaseException as e:
             context.write_error(e)
+            context.db.write_all()
             sleep(3)
 
 
@@ -131,6 +133,7 @@ def thread_update(my_context):  # syns changes every 30 min, timetable - every 4
             counter += 1
             if counter >= 8:
                 counter = 0
+            context.db.write_all()
             if (not cmp_changes(c_o, my_context.db.timetable.changes)) and b:
                 b = changes_notify()
             else:

@@ -113,6 +113,8 @@ class Context:
             return True
         except requests.exceptions.ConnectionError:
             pass
+        except telebot.apihelper.ApiException as e:
+            print(e, e.result, e.function_name, message.to_user_id, end='\n\n')
         except BaseException as e:
             self.write_error(e)
         return False
