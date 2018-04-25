@@ -76,14 +76,16 @@ def thread_send():
 def thread_update(my_context):  # syns changes every 30 min, timetable - every 4 hours
     def changes_notify():
         def gen_changes(class_id):
+            changes = my_context.db.timetable.changes
             try:
-                changes_cell = my_context.db.timetable.changes.changes[my_context.db.timetable.changes.ch_ind[class_id]]
-            except KeyError:
-                return False
-            return "Свежие изменения для " + my_context.db.timetable.c_n[changes_cell.class_ind] + " на " + \
-                   my_context.db.timetable.d_n[my_context.db.timetable.changes.change_day] + ":\n" + \
+                changes_cell = changes.changes[changes.ch_ind[class_id]]
+            except BaseException as err:
+                print(err)
+                return err
+            return "Свежие изменения для " + my_context.db.timetable.c_n[class_id] + " на " + \
+                   my_context.db.timetable.d_n[changes.change_day] + ":```\n" + \
                    '\n'.join(c_d for c_d in changes_cell.change_data) + \
-                   "\nВсегда можно отказаться от этих уведомлений в настройках (если я их сделал)"
+                   "```\n\nВсегда можно отказаться от этих уведомлений в настройках"
 
         def gen_all_changes():
             return "Свежие изменения на " + my_context.db.timetable.d_n[my_context.db.timetable.changes.change_day] + \
@@ -93,19 +95,33 @@ def thread_update(my_context):  # syns changes every 30 min, timetable - every 4
                    "\nВсегда можно отказаться от этих уведомлений в настройках (если я их сделал)"
 
         is_ok = True
-        for user in list(my_context.db.timetable.users.values()):
-            if (user.type_name != Type.CLASS or my_context.db.timetable.changes.has_changes[user.type_id]) and \
-                    user.settings.notify:
-                if user.type_name == Type.CLASS:
-                    text = gen_changes(user.type_id)
+        for u_id in my_context.db.users:
+            user = my_context.db.users[u_id]
+            if (user.settings.type_name != Type.CLASS or
+                    my_context.db.timetable.changes.has_changes[user.settings.type_id]) and user.settings.notify:
+                if user.settings.type_name == Type.CLASS:
+                    text = gen_changes(user.settings.type_id)
                     is_ok = is_ok and (text is not False)
                 else:
                     text = gen_all_changes()
                     is_ok = is_ok and (text is not False)
                 if text is not False:
-                    common.pool_to_send.append(common.Message(text=text, to_user_id=user.user_id,
-                                                              inline_keyboard=None, silent=True))
+                    common.send_message(text=text, chat_id=user.user_id, inline_keyboard=-1, silent=True, markdown=True)
         return is_ok
+
+    def cmp_changes(c_old, c_new):
+        if c_old.ch_ind != c_new.ch_ind:
+            return False
+        if c_old.has_changes != c_new.has_changes:
+            return False
+        if c_old.change_day != c_new.change_day:
+            return False
+        for i in range(len(c_old.changes)):
+            if c_old.changes[i].class_ind != c_new.changes[i].class_ind:
+                return False
+            if c_old.changes[i].change_data != c_new.changes[i].change_data:
+                return False
+        return True
 
     counter = 0
     while True:
@@ -115,8 +131,10 @@ def thread_update(my_context):  # syns changes every 30 min, timetable - every 4
             counter += 1
             if counter >= 8:
                 counter = 0
-            if my_context.db.timetable.changes != c_o and b:
-                b = b or changes_notify()
+            if (not cmp_changes(c_o, my_context.db.timetable.changes)) and b:
+                b = changes_notify()
+            else:
+                print("no notify")
             print("updated " + str(counter == 1) if b else "update failed")
             sleep(60 * 30)
         except BaseException as e:

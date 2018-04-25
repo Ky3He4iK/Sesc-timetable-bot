@@ -30,15 +30,16 @@ def callback(user_id, data, db, mes_id=None):
     keyboard = None
     print(data)
     if data[0] == 1:
+        text = "Выбери "
         if data[1] == Type.CLASS:
-            text = '\n'.join('/c_' + str(num + 1) + ' : ' + db.timetable.c_n[num]
-                             for num in range(len(db.timetable.c_n)))
+            text += "класс\n" + '\n'.join('/c_' + str(num + 1) + ' : ' + db.timetable.c_n[num]
+                                          for num in range(len(db.timetable.c_n)))
         elif data[1] == Type.TEACHER:
-            text = '\n'.join('/t_' + str(num + 1) + ' : ' + db.timetable.t_n[num]
-                             for num in range(len(db.timetable.t_n)))
+            text += "учителя\n" + '\n'.join('/t_' + str(num + 1) + ' : ' + db.timetable.t_n[num]
+                                            for num in range(len(db.timetable.t_n)))
         elif data[1] == Type.ROOM:
-            text = '\n'.join('/r_' + str(num + 1) + ' : ' + db.timetable.get_room(num)
-                             for num in range(len(db.timetable.r_i)))
+            text += "кабинет\n" + '\n'.join('/r_' + str(num + 1) + ' : ' + db.timetable.get_room(num)
+                                            for num in range(len(db.timetable.r_i)) if num != db.timetable.trap)
         db.users[user_id].settings.current_state = data[2:4] + [-1] * 6
         keyboard = types.InlineKeyboardMarkup(row_width=3)
         keyboard.add(kb_button("Класс", [1, Type.CLASS] + data[2:4] + [-1] * 4),
@@ -114,10 +115,10 @@ def callback(user_id, data, db, mes_id=None):
         markdown = True
 
     elif data[0] == 6:
+        if data[4] != -1 and data[5] != -1:
+            db.users[user_id].settings.type_name = data[4]
+            db.users[user_id].settings.type_id = data[5]
         if data[1] == 0 or data[1] == 1:
-            if data[4] != -1 and data[5] != -1:
-                db.users[user_id].settings.type_name = data[4]
-                db.users[user_id].settings.type_id = data[5]
             if data[1] == 1:
                 db.users[user_id].settings.notify = not \
                     db.users[user_id].settings.notify
@@ -163,7 +164,7 @@ def callback(user_id, data, db, mes_id=None):
                 keyboard.add(k_bs[0])
             keyboard.add(kb_button())
 
-        if data[1] == 4:
+        elif data[1] == 4:
             if data[7] != -1:
                 db.users[user_id].settings.default_presentation_rooms = data[7]
                 return callback(user_id, [6, 0] + [-1] * 6, db, mes_id)
@@ -174,6 +175,10 @@ def callback(user_id, data, db, mes_id=None):
                          kb_button("Следующий день", [6, 4] + [-1] * 5 + [Presentation.TOMORROW]),
                          kb_button("Ближайший урок", [6, 4] + [-1] * 5 + [Presentation.NEAR]))
             keyboard.add(kb_button())
+
+        elif data[1] == 5:
+            data = [2, 0] + [-1] * 6
+            return callback(user_id=user_id, db=db, data=data, mes_id=mes_id)
 
     elif data[0] == 7:
         keyboard = types.InlineKeyboardMarkup(row_width=3)
@@ -221,14 +226,15 @@ def message(msg, db):
     if msg.text == '/start':
         if msg.from_user.id not in db.users:
             db.add_user(msg)
-            common.pool_to_send.append(common.Message(text="User added"))
+            common.pool_to_send.append(common.Message(text="User added", inline_keyboard=-1))
             text = "Привет, " + str(msg.from_user.first_name) + \
                    "!\nЯ буду показывать тебе расписание, но сначала я должен узнать немного о тебе"
-            keyboard = types.InlineKeyboardMarkup().add(kb_button("Дальше"), [1, 0, 2, 0] + [-1] * 4)
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(kb_button("Дальше", [1, 0, 6, 5] + [-1] * 4))
             db.users[msg.from_user.id].settings.current_state = [1, 0, 2, 0] + [-1] * 4
         else:
             text = str(msg.from_user.first_name) + ", ты уже зарегистрирован"
-            keyboard = config.default_keyboard
+            keyboard = None
         common.pool_to_send.append(common.Message(text=text, to_user_id=msg.from_user.id, inline_keyboard=keyboard))
     elif msg.text == '/menu':
         if msg.from_user.id in db.users:

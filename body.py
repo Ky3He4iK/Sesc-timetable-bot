@@ -39,8 +39,7 @@ class Context:
             try:
                 Message_handler.message(message, self.db)
             except BaseException as e:
-                self.bot.send_message(message.chat.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
-                                                       "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код")
+                self.bot.send_message(message.chat.id, "Что-то полшо не так")
                 self.write_error(e, message)
 
         @self.bot.message_handler()
@@ -49,8 +48,7 @@ class Context:
             try:
                 Message_handler.message(message, self.db)
             except BaseException as e:
-                self.bot.send_message(message.chat.id, "Чак Норрис, перелогинься. Ты заставляешь падать ̶м̶о̶и̶ "
-                                                       "̶л̶у̶ч̶ш̶и̶е̶ ̶к̶о̶с̶т̶ы̶л̶и̶ мой почти идеальный код")
+                self.bot.send_message(message.chat.id, "Что-то пошло не так")
                 self.write_error(e, message)
 
         @self.bot.callback_query_handler(func=lambda call: True)

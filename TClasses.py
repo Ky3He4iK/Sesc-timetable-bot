@@ -149,12 +149,14 @@ class Changes:
         self.change_day = -1
         self.changes = [self.ChangesCell() for _ in range(0)]
         self.has_changes = [False for _ in range(class_count)]
+        self.ch_ind = {}
 
     def __dict__(self):
         return {
             'change_day': self.change_day,
             'changes': [c.__dict__() for c in self.changes],
-            'has_changes': self.has_changes
+            'has_changes': self.has_changes,
+            'ch_ind': self.ch_ind
         }
 
     class ChangesCell:
@@ -177,6 +179,9 @@ class Changes:
         self.change_day = original['change_day']
         self.has_changes = original['has_changes']
         self.changes = [self.ChangesCell().restore(origin) for origin in original['changes']]
+        if 'ch_ind' in original:
+            ch_ind = original['ch_ind']
+            self.ch_ind = {c_i: ch_ind[c_i] for c_i in ch_ind}
         return self
 
     def get_changes_pres(self, timetable, presentation, ind=-1):
@@ -192,10 +197,10 @@ class Changes:
         if class_ind is None:
             ans = ''
             for change_cell in self.changes:
-                ans += '*' + timetable.c_n[change_cell.class_ind] + '*:```\n'
+                ans += '*' + timetable.c_n[change_cell.class_ind] + '*:` \n'
                 for i in range(len(change_cell.change_data)):
                     ans += ('├ ' if i != len(change_cell.change_data) - 1 else '└ ') + change_cell.change_data[i] + '\n'
-                ans += '```'
+                ans += '`'
             ans = timetable.d_n[self.change_day] + ":\n" + ans
             if not inline:
                 ans = "Изменения на " + ans
@@ -209,7 +214,7 @@ class Changes:
                     if inline:
                         return timetable.d_n[self.change_day] + ":\n" + ans
                     return "Изменения на " + timetable.d_n[self.change_day] + " для " + \
-                           timetable.c_n[class_ind] + ":```\n" + ans + '\n```'
+                           timetable.c_n[class_ind] + ":` \n" + ans + '\n`'
             common.pool_to_send.append(str(class_ind) + " - класс Шредингера в плане изменений")
             return "так_блэт.пнг\nЭтого не должно призойти! Что-то пошло не так!"
         else:

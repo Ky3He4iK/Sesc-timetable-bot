@@ -165,6 +165,7 @@ def t_update(timetable, full=True, fast=False):
                 tt_t.changes.has_changes[cl_ind] = True
                 tmp = [sub_ch[:sub_ch.find("</p>")] for sub_ch in lesson_ch.split("<p>") if len(sub_ch) >= 2]
                 tt_t.changes.changes.append(TClasses.Changes.ChangesCell(cl_ind, tmp))
+                tt_t.changes.ch_ind[cl_ind] = len(tt_t.changes.changes) - 1
 
             changes_raw = get_changes_raw()
             tt_t.changes = TClasses.Changes(len(tt_t.classes))

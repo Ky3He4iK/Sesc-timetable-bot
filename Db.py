@@ -18,6 +18,7 @@ class User:
             self.default_presentation_changes = default_presentation_changes  # 4 - all changes; 5 - for one class
             # (only if type is class)
             self.default_presentation_rooms = default_presentation_rooms  # 0 - all days; 1 - current day; 2 - next day;
+
             # 3 - near lesson
 
         def __dict__(self):
@@ -114,7 +115,7 @@ class Db:
             self.read_all()
             print("Read!")
         except FileNotFoundError:
-            print("Updating...")
+            print("Files not found. Updating...")
             self.users = {0: User() for _ in range(0)}
             self.feedback = [Feedback() for _ in range(0)]
             self.timetable = Timetable.Timetable()
@@ -165,10 +166,11 @@ class Db:
 
     def read_all(self):
         # self.users = [User().restore(origin) for origin in IO.FileIO.read_json("users.json")]
-        u_t = IO.FileIO.read_json("data/users.json")
-        self.users = {int(key): User().restore(u_t[key]) for key in list(u_t)}
         self.timetable = Timetable.Timetable().restore(IO.FileIO.read_json("data/timetable.json"))
         self.feedback = [Feedback().restore(origin) for origin in IO.FileIO.read_json("data/feedback.json")]
+
+        u_t = IO.FileIO.read_json("data/users.json")
+        self.users = {int(key): User().restore(u_t[key]) for key in list(u_t)}
         return self
 
     def update(self, fast=False):
